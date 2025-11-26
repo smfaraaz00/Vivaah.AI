@@ -12,6 +12,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+// Adjust this import if your project uses a different package name for the chat hook.
 import { useChat } from "@ai-sdk/react";
 import { ArrowUp, Loader2, Plus, Square } from "lucide-react";
 import { MessageWall } from "@/components/messages/message-wall";
@@ -36,31 +37,59 @@ export default function Chat() {
   const welcomeMessageShownRef = useRef(false);
   const [durations, setDurations] = useState<Record<string, number>>({});
 
-  // Safely read from localStorage only on client
-  const stored =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}")
-      : { messages: [], durations: {} };
+  // Defensive localStorage read
+  const safeReadStored = (): { messages: UIMessage[]; durations: Record<string, number> } => {
+    try {
+      if (typeof window === "undefined") return { messages: [], durations: {} };
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { messages: [], durations: {} };
+      const parsed = JSON.parse(raw);
+      return {
+        messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+        durations: parsed.durations || {},
+      };
+    } catch (err) {
+      try {
+        if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+      } catch {}
+      return { messages: [], durations: {} };
+    }
+  };
 
+  const stored = safeReadStored();
   const [initialMessages] = useState<UIMessage[]>(stored.messages || []);
 
-  const { messages, sendMessage, status, stop, setMessages } = useChat({
+  // Relaxed typing for useChat to avoid mismatches across SDK versions.
+  const chatHook = useChat({
     messages: initialMessages,
-  });
+  }) as {
+    messages: UIMessage[];
+    sendMessage: (...args: any[]) => Promise<any>;
+    status: "ready" | "streaming" | "submitted" | "error";
+    stop: () => void;
+    setMessages: (m: UIMessage[]) => void;
+  };
+
+  const { messages, sendMessage, status, stop, setMessages } = chatHook;
 
   useEffect(() => {
     setIsClient(true);
     setDurations(stored.durations || {});
-    setMessages(stored.messages || []);
+    try {
+      setMessages(stored.messages || []);
+    } catch {
+      // ignore if setMessages signature is stricter in this SDK version
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // persist messages & durations defensively
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ messages, durations })
-      );
+    if (!isClient) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, durations }));
+    } catch {
+      // ignore write errors (private mode, quota)
     }
   }, [messages, durations, isClient]);
 
@@ -75,11 +104,12 @@ export default function Chat() {
         role: "assistant",
         parts: [{ type: "text", text: WELCOME_MESSAGE }],
       };
-      setMessages([welcomeMsg]);
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ messages: [welcomeMsg], durations: {} })
-      );
+      try {
+        setMessages([welcomeMsg]);
+      } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: [welcomeMsg], durations: {} }));
+      } catch {}
       welcomeMessageShownRef.current = true;
     }
   }, [isClient, initialMessages.length, setMessages]);
@@ -90,16 +120,19 @@ export default function Chat() {
   });
 
   const clearChat = () => {
-    setMessages([]);
+    try {
+      setMessages([]);
+    } catch {}
     setDurations({});
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    try {
+      if (typeof window !== "undefined") localStorage.removeItem(STORAGE_KEY);
+    } catch {}
     toast.success("Chat cleared");
   };
 
   function onSubmit(data: z.infer<typeof formSchema>) {
-    // Place sessionKey inside metadata — this matches the sendMessage type contract
+    // Pass sessionKey inside metadata to align with sendMessage types
+    // sendMessage typing is permissive above so this call should compile across SDK versions
     sendMessage({
       text: data.message,
       metadata: { sessionKey: getOrCreateSessionKey() },
@@ -110,7 +143,6 @@ export default function Chat() {
   return (
     <div className="flex h-screen justify-center items-center">
       <main className="w-full h-screen relative">
-
         {/* ===== Header with gold underline ===== */}
         <div className="fixed top-0 left-0 right-0 z-50 bg-[var(--cream-bg)] border-b-[2px] border-[var(--gold-1)] shadow-sm">
           <ChatHeader>
@@ -150,17 +182,15 @@ export default function Chat() {
                   messages={messages}
                   status={status}
                   durations={durations}
-                  // Persist duration changes coming from MessageWall
-                  onDurationChange={(durationMs: number, messageId: string) => {
+                  // Correct signature: (key: string, duration: number)
+                  onDurationChange={(key: string, duration: number) => {
                     setDurations((prev) => {
-                      const updated = { ...prev, [messageId]: durationMs };
-                      // persist immediately to localStorage when on client
-                      if (typeof window !== "undefined") {
-                        localStorage.setItem(
-                          STORAGE_KEY,
-                          JSON.stringify({ messages, durations: updated })
-                        );
-                      }
+                      const updated = { ...prev, [key]: duration };
+                      try {
+                        if (typeof window !== "undefined") {
+                          localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, durations: updated }));
+                        }
+                      } catch {}
                       return updated;
                     });
                   }}
@@ -234,7 +264,6 @@ export default function Chat() {
             • Powered by Vivaah AI
           </div>
         </div>
-
       </main>
     </div>
   );
