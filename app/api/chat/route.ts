@@ -14,7 +14,7 @@ import { vectorDatabaseSearch } from './tools/search-vector-database';
 
 export const maxDuration = 30;
 
-// --------- NEW: helper to extract latest user text ----------
+// --------- helper to extract latest user text ----------
 function getLatestUserText(messages: UIMessage[]): string | null {
   const latestUserMessage = messages
     .filter((msg) => msg.role === 'user')
@@ -30,7 +30,7 @@ function getLatestUserText(messages: UIMessage[]): string | null {
   return textParts || null;
 }
 
-// --------- NEW: vendor query detection ----------
+// --------- vendor query detection ----------
 function isVendorQuery(text: string | null): boolean {
   if (!text) return false;
   const t = text.toLowerCase();
@@ -54,13 +54,12 @@ function isVendorQuery(text: string | null): boolean {
   );
 }
 
-// --------- NEW: vendor-specific system prompt ----------
+// --------- vendor-specific system prompt ----------
 const VENDOR_SYSTEM_PROMPT = `
 You are Vivaah, a wedding vendor recommendation assistant.
 You must use ONLY the vendor data returned by the "vectorDatabaseSearch" tool as your primary source of truth.
 Focus on recommending wedding vendors in Mumbai by default, unless the user clearly specifies another city.
 Keep answers under 100 words, be clear and concise.
-If the user asks for something not related to wedding vendors, say briefly that you can only help with vendor recommendations.
 `.trim();
 
 // ================== MAIN HANDLER ==================
@@ -69,7 +68,7 @@ export async function POST(req: Request) {
 
   const latestUserText = getLatestUserText(messages);
 
-  // --------- Moderation (unchanged, just reusing latestUserText) ----------
+  // --------- Moderation ----------
   if (latestUserText) {
     const moderationResult = await isContentFlagged(latestUserText);
 
@@ -110,13 +109,13 @@ export async function POST(req: Request) {
     }
   }
 
-  // --------- NEW: decide mode (vendor vs normal) ----------
+  // --------- decide mode (vendor vs normal) ----------
   const vendorMode = isVendorQuery(latestUserText);
 
   const systemPrompt = vendorMode ? VENDOR_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
   // If vendorMode → allow vectorDatabaseSearch tool.
-  // Else → only allow webSearch (or {} if you want no tools).
+  // Else → only allow webSearch.
   const tools = vendorMode
     ? { webSearch, vectorDatabaseSearch }
     : { webSearch };
