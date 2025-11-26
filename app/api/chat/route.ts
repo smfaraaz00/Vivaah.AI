@@ -6,6 +6,8 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from 'ai';
+import type { ToolSet } from 'ai';
+
 import { MODEL } from '@/config';
 import { SYSTEM_PROMPT } from '@/prompts';
 import { isContentFlagged } from '@/lib/moderation';
@@ -77,9 +79,7 @@ export async function POST(req: Request) {
         execute({ writer }) {
           const textId = 'moderation-denial-text';
 
-          writer.write({
-            type: 'start',
-          });
+          writer.write({ type: 'start' });
 
           writer.write({
             type: 'text-start',
@@ -99,9 +99,7 @@ export async function POST(req: Request) {
             id: textId,
           });
 
-          writer.write({
-            type: 'finish',
-          });
+          writer.write({ type: 'finish' });
         },
       });
 
@@ -111,14 +109,16 @@ export async function POST(req: Request) {
 
   // --------- decide mode (vendor vs normal) ----------
   const vendorMode = isVendorQuery(latestUserText);
-
   const systemPrompt = vendorMode ? VENDOR_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
-  // If vendorMode → allow vectorDatabaseSearch tool.
-  // Else → only allow webSearch.
-  const tools = vendorMode
-    ? { webSearch, vectorDatabaseSearch }
-    : { webSearch };
+  // --------- tools selection with explicit typing ----------
+  let tools: ToolSet | undefined;
+
+  if (vendorMode) {
+    tools = { webSearch, vectorDatabaseSearch };
+  } else {
+    tools = { webSearch };
+  }
 
   const result = streamText({
     model: MODEL,
