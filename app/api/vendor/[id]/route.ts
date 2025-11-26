@@ -1,17 +1,24 @@
 // app/api/vendor/[id]/route.ts
 import { NextResponse } from "next/server";
-// route file is at: app/api/vendor/[id]/route.ts
-// lib is at: /lib/supabase.ts (project root)
-// relative path from this file to lib => ../../../../lib/...
+// correct relative path to lib
 import { supabaseAdmin } from "../../../../lib/supabase";
 
 /**
  * GET /api/vendor/:id
  * Returns canonical vendor row plus images, offers and recent reviews.
+ *
+ * Notes:
+ * - We type `context` as `any` to avoid strict compile-time mismatches across Next versions.
+ * - We always `await` Promise.resolve(context?.params) to handle both plain-object and Promise params.
  */
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, context: any) {
+  // context.params may be an object or a Promise depending on Next version/runtime.
+  const params = await Promise.resolve(context?.params || {});
   const id = params?.id;
-  if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
+
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
 
   try {
     // 1) Fetch vendor main record
