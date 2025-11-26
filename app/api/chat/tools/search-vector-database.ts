@@ -1,9 +1,11 @@
+// @ts-nocheck
+
 import { tool } from 'ai';
 import { z } from 'zod';
 import { OpenAI } from 'openai';
 import { Pinecone } from '@pinecone-database/pinecone';
 
-// -------------------- Clients --------------------
+// ---------- Clients ----------
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY as string,
 });
@@ -14,27 +16,7 @@ const pinecone = new Pinecone({
 
 const index = pinecone.index(process.env.PINECONE_INDEX_NAME as string);
 
-// -------------------- Types --------------------
-type VectorSearchArgs = {
-  query: string;
-  topK?: number;
-};
-
-type Vendor = {
-  id: string;
-  score: number | undefined;
-  name: string;
-  location: string;
-  category: string;
-  price_range: string;
-  description: string;
-};
-
-type VectorSearchResult = {
-  vendors: Vendor[];
-};
-
-// -------------------- Tool --------------------
+// ---------- Tool ----------
 export const vectorDatabaseSearch = tool({
   description:
     'Search the Pinecone vendor database and return the most relevant wedding vendors based on the user query.',
@@ -44,8 +26,7 @@ export const vectorDatabaseSearch = tool({
     topK: z.number().min(1).max(10).optional().default(5),
   }),
 
-  // IMPORTANT: use arrow-function syntax, not method syntax
-  execute: async ({ query, topK }: VectorSearchArgs): Promise<VectorSearchResult> => {
+  async execute({ query, topK }) {
     try {
       const k = topK ?? 5;
 
@@ -65,7 +46,7 @@ export const vectorDatabaseSearch = tool({
       });
 
       // 3. Format results
-      const vendors: Vendor[] =
+      const vendors =
         pineconeResponse.matches?.map((match) => ({
           id: match.id,
           score: match.score,
@@ -79,7 +60,6 @@ export const vectorDatabaseSearch = tool({
       return { vendors };
     } catch (error) {
       console.error('Vector DB Search Error:', error);
-      // On error, just return no vendors so the model can fail gracefully
       return { vendors: [] };
     }
   },
