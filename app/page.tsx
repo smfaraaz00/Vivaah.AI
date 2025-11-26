@@ -23,6 +23,8 @@ import { AI_NAME, CLEAR_CHAT_TEXT, OWNER_NAME, WELCOME_MESSAGE } from "@/config"
 import Image from "next/image";
 import Link from "next/link";
 
+import { getOrCreateSessionKey } from "@/lib/session-client";
+
 const formSchema = z.object({
   message: z.string().min(1).max(2000),
 });
@@ -93,7 +95,8 @@ export default function Chat() {
   };
 
   function onSubmit(data: z.infer<typeof formSchema>) {
-    sendMessage({ text: data.message });
+    // Add sessionKey to every outgoing chat message
+    sendMessage({ text: data.message, sessionKey: getOrCreateSessionKey() });
     form.reset();
   }
 
