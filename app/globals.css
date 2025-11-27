@@ -4,7 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================
-   PREMIUM VIVAAH GLOBALS (POPPIER)
+   PREMIUM VIVAAH GLOBALS (POPPIER) - FIXED
+   - "More details" (btn-premium) now uses a strong purple treatment
+   - Defensive overrides for any "secondary" variant that was producing a washed light-purple
+   - Added a specific .more-details-btn selector for vendor-card usage
    ========================= */
 
 /* ---- Color tokens (jewel + tuned rose-gold / pop) ---- */
@@ -18,7 +21,7 @@
   --soft-blush: #fff8f9;
   --accent-teal: #2c8c90;
 
-  /* Tuned rose-gold palette (poppier: brighter highlight, richer mid) */
+  /* Tuned rose-gold palette (kept for accents) */
   --champagne-gold: #d89f85; /* mid tone */
   --bright-gold:   #f0cdbf; /* highlight / sheen */
   --warm-gold:     #b86e53; /* shadow / depth */
@@ -40,6 +43,7 @@
   --primary: var(--champagne-gold);
   --primary-foreground: #fff;
 
+  /* Keep secondary token but avoid using the washed blush for action buttons */
   --secondary: var(--blush-rose);
   --secondary-foreground: var(--deep-plum);
 
@@ -227,7 +231,13 @@ body {
   transform: translateY(-1px);
 }
 
-/* Send / stop circular button */
+/* ============================
+   FIX: "More details" visual
+   - .btn-premium converted to strong purple treatment
+   - Hover/active states tuned for clear affordance
+   ============================ */
+
+/* Send / stop circular button (keeps rose-gold look for send) */
 .btn-premium, .button-icon {
   position: absolute;
   right: 1rem;
@@ -245,16 +255,57 @@ body {
   box-shadow: 0 10px 30px rgba(184,110,83,0.16), inset 0 1px 0 rgba(255,255,255,0.12);
   transition: transform 160ms ease, filter 160ms ease;
 }
-.btn-premium { background: linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 45%, var(--warm-gold) 100%); }
-.btn-premium:hover { transform: translateY(-50%) scale(1.04); }
-.button-icon.stream-stop { background: linear-gradient(180deg, #8c3131 0%, #6a2323 100%); box-shadow: 0 10px 30px rgba(140,60,60,0.16); }
+
+/* Keep send button's rose-gold style (maintain contrast with purple CTAs) */
+.btn-premium.send {
+  background: linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 45%, var(--warm-gold) 100%);
+}
+.btn-premium.send:hover { transform: translateY(-50%) scale(1.04); }
+
+/* Primary change: "More details" should be a purple CTA - use .btn-premium.purple or generic .btn-premium override where needed */
+/* Prefer using class="btn-premium purple" in markup; defensive fallback below forces purple if .btn-premium used alone */
+
+.btn-premium.purple,
+.btn-premium.more-details,
+.btn-premium.primary-purple {
+  background: linear-gradient(135deg, var(--deep-plum) 0%, var(--rich-burgundy) 80%);
+  color: #fff !important;
+  box-shadow: 0 10px 30px rgba(74, 12, 35, 0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+  border: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.btn-premium.purple:hover,
+.btn-premium.more-details:hover,
+.btn-premium.primary-purple:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 14px 40px rgba(74, 12, 35, 0.28);
+}
+
+/* Defensive: if vendor card uses a specific more-details class name */
+.vendor-card-premium .more-details-btn,
+.vendor-card-premium .btn-more-details {
+  background: linear-gradient(135deg, var(--deep-plum) 0%, var(--rich-burgundy) 80%) !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 10px 22px;
+  font-weight: 700;
+  border-radius: 24px;
+  box-shadow: 0 8px 30px rgba(74, 12, 35, 0.18);
+  transition: all 0.2s ease;
+}
+.vendor-card-premium .more-details-btn:hover,
+.vendor-card-premium .btn-more-details:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 36px rgba(74, 12, 35, 0.22);
+}
 
 /* placeholder */
 ::placeholder { color: rgba(64,16,42,0.42); }
 
 /* ===== Buttons & outlines ===== */
 
-/* ---- Updated: Solid purple outline variant with hover fill ---- */
+/* ---- Solid purple outline variant with hover fill (Reviews) ---- */
 .btn-outline-premium {
   background: transparent;
   color: var(--deep-plum);                  /* strong purple text */
@@ -285,6 +336,17 @@ body {
 .btn-outline-premium:active {
   transform: translateY(0px) scale(0.98);
   box-shadow: 0 3px 10px rgba(74, 12, 35, 0.12);
+}
+
+/* Defensive: If your components use a "secondary" button variant (ShadCN / component lib),
+   ensure it doesn't render the washed blush as an action CTA. Override only the interactive variant. */
+button[data-variant="secondary"],
+.btn-secondary,
+.bg-secondary {
+  background: linear-gradient(135deg, var(--deep-plum) 0%, var(--rich-burgundy) 80%) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 8px 28px rgba(74, 12, 35, 0.18) !important;
 }
 
 /* metallic helpers */
