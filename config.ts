@@ -33,7 +33,7 @@ export const DATE_AND_TIME = getDateAndTime();
 export const AI_NAME = "Viv";
 export const OWNER_NAME = "Vivaah.ai";
 
-export const WELCOME_MESSAGE = `Hello! I'm ${AI_NAME} (Vivaah Intelligent Virtual-assistant), an AI assistant   
+export const WELCOME_MESSAGE = `Hello! I'm ${AI_NAME} (Vivaah Intelligent Virtual assistant), an AI assistant   
 I help couples and planners in Mumbai make wedding planning simple, fast and stress-free.
 
 What I can do for you:
