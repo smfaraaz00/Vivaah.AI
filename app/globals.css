@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================
-   VIVAAH GLOBALS (FINAL FIX)
+   VIVAAH GLOBALS (REVERTED & FIXED)
    ========================= */
 
 :root {
@@ -37,15 +37,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 1. HEADER (Fixed at top) */
+/* 1. HEADER (FIXED ALIGNMENT) */
 .chat-header {
   height: 72px;
   display: flex;
   align-items: center;
+  justify-content: space-between; /* CRITICAL FIX: Pushes Logo left, Button right */
   background: var(--cream-bg);
   border-bottom: 1px solid rgba(184,110,83,0.12);
   padding: 0 1rem;
-  z-index: 100; /* Highest priority */
+  z-index: 100;
   position: fixed;
   top: 0;
   left: 0;
@@ -53,33 +54,44 @@ body {
   width: 100%;
 }
 
+/* FIX: Target the New Chat button specifically to stop wrapping */
+.chat-header button, 
+.chat-header a {
+  white-space: nowrap !important; /* CRITICAL FIX: Prevents "+ New" from breaking lines */
+  flex-shrink: 0;
+}
+
 .glass-header {
   backdrop-filter: blur(12px);
   z-index: 100;
 }
 
-/* 2. WELCOME CARD (The "What I can do for you" box) */
-/* FIX: Added margin-top: 100px to force it below the 72px header immediately */
+/* 2. WELCOME CARD (Reverted to Gradient, kept spacing) */
 .chat-card {
   width: 100%;
   max-width: 56rem;
   margin: 0 auto;
-  margin-top: 100px !important; /* NUCLEAR FIX: Forces card down */
-  background: #ffffff !important; /* White background to stand out */
+  margin-top: 100px !important; /* Kept spacing fix */
+  
+  /* REVERTED: Back to Premium Gradient (No more stark white) */
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,252,249,0.98));
+  
   border-radius: 14px;
   padding: 1.25rem 1.5rem;
-  border: 1px solid rgba(216,160,130,0.15);
-  box-shadow: 0 12px 40px rgba(75,22,51,0.08);
+  border: 1px solid rgba(216,160,130,0.12);
+  box-shadow: 0 12px 40px rgba(75,22,51,0.06);
   position: relative;
   z-index: 10;
 }
 
-/* 3. ASSISTANT CHAT BUBBLES (The "Colors messed up" fix) */
-/* FIX: Pure white background + visible border to contrast against cream page */
+/* 3. CHAT BUBBLES (Reverted to Gradient) */
+/* Assistant - Back to Soft Pearl Gradient */
 .message-assistant-premium {
-  background: #ffffff !important; 
-  border: 1px solid rgba(216, 160, 130, 0.4) !important;
-  box-shadow: 0 4px 12px rgba(58, 3, 32, 0.05) !important;
+  /* REVERTED: Soft gradient instead of garbage white */
+  background: linear-gradient(135deg, var(--pearl-white) 0%, var(--soft-blush) 100%) !important;
+  
+  border: 1px solid rgba(216, 160, 130, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(58, 3, 32, 0.03) !important;
   color: var(--text-maroon);
   border-radius: 22px 22px 22px 6px;
   padding: 14px 18px;
@@ -104,13 +116,12 @@ body {
 }
 
 /* 4. SCROLL CONTAINER PADDING */
-/* FIX: Ensures messages don't hide behind header or footer */
 .h-screen.overflow-y-auto,
 .h-screen.overflow-auto,
 .main-messages,
 .messages-scroll {
-  padding-top: 100px !important; /* Force space at top */
-  padding-bottom: 120px !important; /* Force space at bottom for footer */
+  padding-top: 100px !important; /* Forces content below header */
+  padding-bottom: 120px !important;
 }
 
 /* 5. FOOTER / INPUT */
@@ -122,14 +133,13 @@ body {
   padding-bottom: 24px;
 }
 
-/* Input Pill */
 .input-pill, .input-premium {
   width: 100%; max-width: 880px; margin: 0 auto; 
   height: 56px;
   border-radius: 999px;
   display: flex; align-items: center; 
   padding-left: 1rem; padding-right: 4.5rem;
-  background: #ffffff; 
+  background: var(--pearl-white); /* Soft background */
   border: 1px solid rgba(216,160,130,0.2);
   box-shadow: 0 8px 26px rgba(75,22,51,0.04);
 }
@@ -138,7 +148,6 @@ body {
   font-size: 1rem; color: var(--text-maroon); padding: 5px 0;
 }
 
-/* Send Button */
 .btn-premium, .button-icon {
   position: absolute; right: 0.8rem; top: 50%; transform: translateY(-50%);
   width: 46px; height: 46px; border-radius: 50%;
@@ -148,17 +157,10 @@ body {
   box-shadow: 0 4px 15px rgba(184,110,83,0.2);
 }
 
-/* Buttons inside chat */
-.more-details-btn, .btn-premium.purple {
-  background: linear-gradient(135deg, var(--deep-plum), var(--rich-burgundy)) !important;
-  color: #fff !important; padding: 10px 22px !important; border-radius: 24px !important;
-  font-weight: 700 !important; border: none !important;
-  display: inline-flex; align-items: center; gap: 8px;
-}
-
 /* Vendor Cards */
 .vendor-card-premium {
-  background: #ffffff; border-radius: 16px; padding: 18px;
+  background: linear-gradient(135deg, var(--pearl-white) 0%, #ffffff 100%);
+  border-radius: 16px; padding: 18px;
   border: 1px solid rgba(216,160,130,0.15);
   box-shadow: 0 8px 24px rgba(75,22,51,0.05);
   margin-bottom: 20px; position: relative; overflow: hidden;
@@ -166,6 +168,14 @@ body {
 .vendor-card-premium::before {
   content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
   background: linear-gradient(90deg,var(--bright-gold),var(--champagne-gold));
+}
+
+/* Buttons inside chat */
+.more-details-btn, .btn-premium.purple {
+  background: linear-gradient(135deg, var(--deep-plum), var(--rich-burgundy)) !important;
+  color: #fff !important; padding: 10px 22px !important; border-radius: 24px !important;
+  font-weight: 700 !important; border: none !important;
+  display: inline-flex; align-items: center; gap: 8px;
 }
 
 /* Utilities */
