@@ -25,10 +25,23 @@ import { getVendorDetails } from "@/lib/db/getVendorDetails";
  * - GUIDE flow for curated guides (structured JSON sentinel + pretty text)
  */
 
-// initialize supabase server client only if env available
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+// Safe supabase getter — avoid creating client at module load time (prevents build error)
+function getSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ??
+    process.env.SUPABASE_SERVICE_KEY ??
+    process.env.SUPABASE_ANON_KEY ??
+    null;
+
+  if (!url || !key) {
+    // return null when not configured — route should gracefully handle null supabase
+    return null;
+  }
+
+  return createClient(url, key);
+}
+
 
 export const maxDuration = 30;
 
@@ -212,6 +225,10 @@ export async function POST(req: Request) {
     console.error("[chat] failed to parse JSON body:", err);
     return new Response(JSON.stringify({ error: "invalid JSON body" }), { status: 400 });
   }
+
+    // initialize supabase client at runtime
+  const supabase = getSupabase();
+
 
   // normalize messages: accept { messages } or { message }
   let messages: UIMessage[] | undefined = undefined;
