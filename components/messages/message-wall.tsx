@@ -123,59 +123,65 @@ export function MessageWall({ messages, status, durations, onDurationChange }: P
 
   function VendorCard({ v }: { v: VendorHit }) {
     return (
-      <div className="w-full border rounded-lg p-4 bg-white shadow-sm flex gap-4">
-        <div className="w-24 h-24 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+      <div className="vendor-card-premium w-full flex gap-4">
+        <div className="vendor-image-premium w-24 h-24 flex-shrink-0 bg-gradient-to-br from-[var(--soft-blush)] to-[var(--pearl-white)]">
           {v.images && v.images.length ? (
-            // use regular img tag to avoid next/image domain config problems during debugging
-            // ensure URLs are absolute (http(s)://...) — if they are relative and 404, they'll still 404.
-            // We use onError to silence broken images.
-            // eslint-disable-next-line jsx-a11y/alt-text
             <img
               src={v.images[0]}
+              alt={v.name || "Vendor"}
               style={{ width: 96, height: 96, objectFit: "cover" }}
               onError={(e) => {
-                // hide broken image
-                // @ts-ignore
                 e.currentTarget.style.display = "none";
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">No image</div>
+            <div className="w-full h-full flex items-center justify-center text-xs text-[var(--rich-burgundy)] opacity-60">No image</div>
           )}
         </div>
 
         <div className="flex-1">
           <div className="flex justify-between items-start">
             <div>
-              <div className="font-semibold text-sm">{v.name}</div>
-              <div className="text-xs text-gray-600">{v.category ?? ""} • {v.city ?? ""}</div>
+              <div className="font-semibold text-[var(--deep-plum)]">{v.name}</div>
+              <div className="text-xs text-[var(--rich-burgundy)] opacity-70 mt-0.5">{v.category ?? ""} • {v.city ?? ""}</div>
             </div>
-            <div className="text-right text-xs">
-              {v.rating ? <div className="font-medium">{v.rating}/5</div> : null}
-              <div className="text-gray-500">{v.is_veg === true ? "Veg-only" : v.is_veg === false ? "Veg & Non-veg" : ""}</div>
+            <div className="text-right">
+              {v.rating ? (
+                <div className="rating-premium">
+                  <span>★</span> {v.rating}/5
+                </div>
+              ) : null}
+              <div className="text-xs text-[var(--rich-burgundy)] opacity-60 mt-1">
+                {v.is_veg === true ? "Veg-only" : v.is_veg === false ? "Veg & Non-veg" : ""}
+              </div>
             </div>
           </div>
 
-          {v.short_description ? <div className="mt-2 text-sm text-gray-700">{v.short_description}</div> : null}
+          {v.short_description ? (
+            <div className="mt-2 text-sm text-[var(--deep-plum)] opacity-80">{v.short_description}</div>
+          ) : null}
 
-          <div className="mt-3 flex gap-2">
+          <div className="mt-4 flex gap-2 flex-wrap">
             <button
-              className="px-3 py-1 rounded bg-[var(--gold-2)] text-white text-sm"
+              className="px-4 py-2 rounded-full bg-gradient-to-r from-[var(--champagne-gold)] to-[var(--bright-gold)] text-white text-sm font-medium shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
               onClick={() => emitMoreDetails(v.name)}
             >
               More details
             </button>
 
             <button
-              className="px-3 py-1 rounded border text-sm"
+              className="px-4 py-2 rounded-full border-2 border-[var(--champagne-gold)] text-[var(--deep-plum)] text-sm font-medium hover:bg-[var(--champagne-gold)] hover:text-white transition-all"
               onClick={() => emitReviews(v.name)}
             >
               Reviews
             </button>
 
             {v.contact && (
-              <a className="ml-auto text-sm underline text-[var(--text-maroon)]" href={`tel:${v.contact}`}>
-                Call
+              <a 
+                className="ml-auto px-4 py-2 rounded-full bg-[var(--accent-teal)] text-white text-sm font-medium hover:opacity-90 transition-opacity" 
+                href={`tel:${v.contact}`}
+              >
+                Call Now
               </a>
             )}
           </div>
@@ -193,11 +199,17 @@ export function MessageWall({ messages, status, durations, onDurationChange }: P
           const hits = message.role === "assistant" ? extractVendorHitsFromText(text) : null;
           const humanText = message.role === "assistant" ? stripSentinelFromText(text) : text;
 
-          // Build a simple shallow clone object used only for passing to AssistantMessage
+          // Build a shallow clone that sanitizes text parts (removes vendor sentinel) while preserving other part types
           const safeMessageForAssistant: UIMessage = (() => {
             if (message.role !== "assistant") return message;
             const clone: any = { ...message };
-            clone.parts = [{ type: "text", text: humanText }];
+            // Preserve all non-text parts (reasoning, tool calls, etc.) and only sanitize text parts
+            clone.parts = (message.parts || []).map((part: any) => {
+              if (part.type === "text") {
+                return { ...part, text: stripSentinelFromText(part.text || "") };
+              }
+              return part;
+            });
             if (clone.content) clone.content = humanText;
             return clone;
           })();
