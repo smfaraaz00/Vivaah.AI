@@ -1,7 +1,7 @@
 // components/messages/message-wall.tsx
 "use client";
 import React, { useEffect, useRef, useMemo } from "react";
-import { useChat } from "@ai-sdk/react"; // correct hook source
+import { useChat } from "ai"; // keep same import as your project uses
 import type { UIMessage } from "ai";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
@@ -14,18 +14,20 @@ type MessageWallProps = {
 };
 
 /**
- * MessageWall
- * - Accepts optional props (compatible with earlier page.tsx)
- * - Falls back to useChat() when props are not passed
- * - Does not print raw JSON sentinels into visible chat text
+ * MessageWall: compatible with older callers that pass props,
+ * and with new callers that rely on useChat().
  */
 export function MessageWall(props: MessageWallProps) {
-  // Prefer props if caller passed messages/status (keeps backwards compatibility)
   const chat = useChat();
+
+  // prefer explicit props (keeps backwards compatibility)
   const messages = props.messages ?? (chat?.messages ?? []);
   const status = props.status ?? (chat?.status ?? "ready");
-  const onDurationChange = props.onDurationChange ?? chat?.onDurationChange;
-  const durations = props.durations ?? chat?.durations ?? {};
+
+  // Some SDKs/type defs don't include these helpers — use a safe cast to access them
+  const chatAny = chat as unknown as any;
+  const onDurationChange = props.onDurationChange ?? chatAny?.onDurationChange ?? undefined;
+  const durations = props.durations ?? chatAny?.durations ?? {};
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -48,7 +50,7 @@ export function MessageWall(props: MessageWallProps) {
         data-testid="message-wall-scroll"
       >
         {renderedMessages.map((m: UIMessage, i: number) => {
-          const role = m.role ?? "assistant";
+          const role = (m.role ?? "assistant") as string;
 
           // assemble plaintext from text parts
           const textParts = (m.parts || [])
@@ -56,14 +58,16 @@ export function MessageWall(props: MessageWallProps) {
             .map((p: any) => p.text ?? "")
             .join("");
 
-          // detect tool-result parts (some SDKs send them as parts; keep defensive)
-          const toolPart = (m.parts || []).find((p: any) => p.type === "tool-result" || p.type === "json" || p.type === "tool");
+          // detect any tool-result-like part defensively
+          const toolPart = (m.parts || []).find((p: any) =>
+            ["tool-result", "json", "tool"].includes(p.type)
+          );
+          // normalize toolResult payload if present
           const toolResult = toolPart ? (toolPart.content ?? toolPart.value ?? toolPart) : null;
 
           if (role === "user") {
             return <UserMessage key={m.id ?? i} message={m} text={textParts} />;
           } else {
-            // Assistant message gets text and toolResult payload (if any)
             return (
               <AssistantMessage
                 key={m.id ?? i}
@@ -87,7 +91,7 @@ export function MessageWall(props: MessageWallProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => (chat?.clear ? chat.clear() : undefined)}
+              onClick={() => (chatAny?.clear ? chatAny.clear() : undefined)}
               className="text-xs underline"
               title="Clear chat"
             >
