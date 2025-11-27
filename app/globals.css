@@ -116,7 +116,7 @@ body{
   transition:transform 160ms ease,filter 160ms ease;
 }
 /* Default visible background for send button (applies even if .send modifier missing) */
-.btn-premium{ background:linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 45%, var(--warm-gold) 100%); color:#fff!important; }
+.btn-premium{ background:linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 0%, var(--warm-gold) 100%); color:#fff!important; }
 .btn-premium:hover{ transform:translateY(-50%) scale(1.03); }
 
 /* Stream-stop variant (if used) */
@@ -175,7 +175,7 @@ body{
 }
 
 /* Vendor card helpers and other small utilities */
-.metallic-gradient{ background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, var(--bright-gold) 12%, var(--champagne-gold) 50%, var(--warm-gold) 100%) }
+.metallic-gradient{ background: linear-gradient(180deg, rgba(255,255,255,0.22) 0%, var(--bright-gold) 12%, var(--champagne-gold) 0%, var(--warm-gold) 100%) }
 .metallic-sheen{ position:relative; overflow:hidden }
 .metallic-sheen::after{ content:""; position:absolute; inset:0; background:linear-gradient(120deg, transparent 18%, rgba(255,255,255,0.45) 35%, transparent 60%); opacity:0; transition:opacity .36s ease; pointer-events:none }
 .metallic-sheen:hover::after{ opacity:1 }
