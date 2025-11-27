@@ -489,7 +489,39 @@ ${JSON.stringify(factBlock)}
               console.warn("[reviews] getVendorDetails failed", e);
             }
 
-            const reviews = details?.top_reviews || [];
+            // ---------- FALLBACK: if getVendorDetails didn't return reviews, fetch directly from supabase ----------
+            let reviews = details?.top_reviews || [];
+            if ((!reviews || reviews.length === 0) && supabase) {
+              try {
+                console.log("[reviews] fallback: fetching reviews from supabase for vendor", vendor.id);
+                const { data: rvRows, error: rvErr } = await supabase
+                  .from("vendor_reviews")
+                  .select("id, reviewer_name, rating, title, body, review_date, review_ts")
+                  .eq("vendor_id", vendor.id)
+                  .order("review_ts", { ascending: false })
+                  .limit(20);
+                if (rvErr) {
+                  console.warn("[reviews] supabase fetch error:", rvErr);
+                } else if (rvRows && rvRows.length) {
+                  reviews = rvRows.map((r: any) => ({
+                    id: r.id,
+                    reviewer_name: r.reviewer_name || "Anonymous",
+                    rating: r.rating !== null && r.rating !== undefined ? Number(r.rating) : null,
+                    title: r.title || "",
+                    body: r.body || "",
+                    review_date: r.review_date || r.review_ts || null,
+                  }));
+                  details = details || {};
+                  details.top_reviews = reviews;
+                  console.log(`[reviews] loaded ${reviews.length} reviews from supabase for vendor ${vendor.id}`);
+                } else {
+                  console.log("[reviews] no rows returned from supabase for vendor", vendor.id);
+                }
+              } catch (e) {
+                console.warn("[reviews] fallback supabase fetch failed", e);
+              }
+            }
+
             if (!reviews.length) {
               writer.write({ type: "text-delta", id: textId, delta: `No reviews available for ${vendor.name}.` });
               writer.write({ type: "text-end", id: textId });
