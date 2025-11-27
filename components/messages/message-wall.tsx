@@ -1,108 +1,81 @@
-// app/components/messages/message-wall.tsx
-// @ts-nocheck
-import React, { useEffect, useMemo, useRef } from "react";
-import { useChat } from "@ai-sdk/react";
-import { UIMessage } from "ai";
+// components/messages/message-wall.tsx
+// Named export: MessageWall
+// Accepts optional props so parent pages/components can pass data (backwards compatible).
 
+import React, { useEffect, useRef, useMemo } from "react";
+import { useChat } from "ai";
+import type { UIMessage } from "ai";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
-import { ReasoningPart } from "./reasoning-part";
 
-/**
- * MessageWall
- *
- * - Renders messages from useChat()
- * - Exports a named MessageWall (and default) so imports like:
- *     import { MessageWall } from "@/components/messages/message-wall";
- *   will work without errors.
- *
- * This file intentionally keeps rendering logic simple so the UI can rely
- * on structured "tool-result" events to render cards (no raw JSON dumped into chat).
- */
+/** Props shape your page.tsx appears to pass */
+export type MessageWallProps = {
+  messages?: UIMessage[]; // optional — if omitted we use useChat().messages
+  status?: "error" | "streaming" | "submitted" | "ready" | string;
+  durations?: Record<string, number>;
+  onDurationChange?: (key: string, duration: number) => void;
+};
 
-export function MessageWall() {
-  const { messages, status, durations = {}, onDurationsChange } = useChat() as {
-    messages: UIMessage[];
-    status?: string;
-    durations?: Record<string, number>;
-    onDurationsChange?: (k: string, v: number) => void;
-  };
+export function MessageWall(props: MessageWallProps = {}) {
+  // If parent provided messages (page.tsx) prefer that; otherwise use hook
+  const chat = useChat();
+  const messagesFromHook = chat?.messages;
+  const messages = props.messages ?? messagesFromHook ?? [];
+
+  // last message id for scroll effect
+  const lastMessageId = messages.length ? messages[messages.length - 1].id : null;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // auto-scroll to bottom on new messages
+  // Auto-scroll when new messages arrive
   useEffect(() => {
-    try {
-      if (containerRef.current) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    const el = containerRef.current;
+    if (!el) return;
+    // smooth scrolling; if you want instant use behavior: "auto"
+    requestAnimationFrame(() => {
+      try {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      } catch {
+        el.scrollTop = el.scrollHeight;
       }
-    } catch (e) {
-      // fail silently
-    }
-  }, [messages?.length]);
-
-  const rendered = useMemo(() => {
-    if (!Array.isArray(messages)) return null;
-
-    return messages.map((m: UIMessage, idx: number) => {
-      const isLastMessage = idx === messages.length - 1;
-      const role = m.role ?? "assistant";
-
-      // find last part index for streaming detection
-      const lastPartIndex = (m.parts?.length ?? 1) - 1;
-      const durationKey = `${m.id}-${lastPartIndex}`;
-      const duration = durations?.[durationKey];
-
-      if (role === "user") {
-        return (
-          <div key={m.id} className="my-4">
-            <UserMessage message={m} />
-          </div>
-        );
-      }
-
-      // assistant or system messages
-      return (
-        <div key={m.id} className="my-4">
-          <AssistantMessage
-            message={m}
-            status={status}
-            isLastMessage={isLastMessage}
-            durations={durations}
-            onDurationChange={
-              onDurationsChange ? (key: string, d: number) => onDurationsChange(key, d) : undefined
-            }
-          />
-          {/* Optional: show reasoning part if present as its own block */}
-          {m.parts?.map((p: any, i: number) =>
-            p?.type === "reasoning" ? (
-              <div key={`${m.id}-r-${i}`} className="mt-2">
-                <ReasoningPart
-                  part={p}
-                  isStreaming={status === "streaming" && isLastMessage && i === lastPartIndex}
-                  duration={durations?.[`${m.id}-${i}`]}
-                  onDurationChange={onDurationsChange ? (d) => onDurationsChange(`${m.id}-${i}`, d) : undefined}
-                />
-              </div>
-            ) : null
-          )}
-        </div>
-      );
     });
-  }, [messages, status, durations, onDurationsChange]);
+  }, [lastMessageId]);
+
+  // stable map of messages to avoid re-render churn in large lists
+  const items = useMemo(() => messages.slice(), [messages]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full overflow-auto px-6 py-6"
-      style={{ WebkitOverflowScrolling: "touch" }}
-      data-testid="message-wall"
+      className="w-full h-full overflow-y-auto px-6 py-6"
+      role="log"
+      aria-live="polite"
     >
-      <div className="max-w-4xl mx-auto">
-        {rendered ?? <div className="text-sm text-gray-500">No messages yet — start the chat.</div>}
+      <div className="max-w-4xl mx-auto flex flex-col gap-6">
+        {items.length === 0 ? (
+          <div className="text-center text-sm text-muted-foreground py-8">No messages yet</div>
+        ) : (
+          items.map((m: UIMessage) => {
+            if (m.role === "user") {
+              return <UserMessage key={m.id} message={m} />;
+            }
+
+            if (m.role === "assistant") {
+              // AssistantMessage should handle rendering tool-result events, images, cards, etc.
+              return <AssistantMessage key={m.id} message={m} />;
+            }
+
+            // fallback for system/other roles
+            return (
+              <div key={m.id} className="text-sm text-muted-foreground">
+                {(m.parts || []).map((p: any, i: number) => (
+                  <div key={`${m.id}-part-${i}`}>{p.type === "text" ? p.text : `[${p.type}]`}</div>
+                ))}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
 }
-
-export default MessageWall;
