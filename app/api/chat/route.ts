@@ -386,7 +386,11 @@ ${JSON.stringify(facts)}
             // try vector -> DB -> helper
             let searchRes = null;
             try {
-              searchRes = await (vectorDatabaseSearch as any).execute?.({ query: vendorName, topK: 8 });
+              if ((vectorDatabaseSearch as any).execute) {
+                searchRes = await (vectorDatabaseSearch as any).execute?.({ query: vendorName, topK: 8 });
+              } else {
+                searchRes = await (vectorDatabaseSearch as any)(vendorName, 8);
+              }
             } catch {
               searchRes = null;
             }
@@ -464,7 +468,7 @@ ${JSON.stringify(factBlock)}
               return;
             }
 
-            // find vendor and reviews
+            // find vendor
             let vendor = null;
             try {
               if (supabase) {
@@ -482,6 +486,7 @@ ${JSON.stringify(factBlock)}
               return;
             }
 
+            // attempt primary details fetch
             let details = null;
             try {
               details = await getVendorDetails(String(vendor.id));
@@ -499,7 +504,7 @@ ${JSON.stringify(factBlock)}
                   .select("id, reviewer_name, rating, title, body, review_date, review_ts")
                   .eq("vendor_id", vendor.id)
                   .order("review_ts", { ascending: false })
-                  .limit(20);
+                  .limit(50);
                 if (rvErr) {
                   console.warn("[reviews] supabase fetch error:", rvErr);
                 } else if (rvRows && rvRows.length) {
@@ -522,12 +527,15 @@ ${JSON.stringify(factBlock)}
               }
             }
 
-            if (!reviews.length) {
+            if (!reviews || reviews.length === 0) {
               writer.write({ type: "text-delta", id: textId, delta: `No reviews available for ${vendor.name}.` });
               writer.write({ type: "text-end", id: textId });
               writer.write({ type: "finish" });
               return;
             }
+
+            // Debugging aid (useful during local testing; safe to remove after)
+            console.log(`[reviews] returning ${reviews.length} reviews for ${vendor.name}`);
 
             const prompt = `
 You are an expert reviewer. Using ONLY the reviews below, produce a concise "Hits vs Misses" expert summary.
@@ -571,7 +579,7 @@ ${JSON.stringify(reviews)}
           if (categoryVal) metadataFilter.category = { $eq: categoryVal.toLowerCase() };
 
           // choose searchWindow relative to requestedCount
-          const searchWindow = Math.max(12, parseRequestedCount(composedQuery, 3, 12) * 4);
+          const searchWindow = Math.max(12, requestedCount * 4);
           console.log("[chat] searchWindow:", searchWindow, "metadataFilter:", metadataFilter);
 
           let searchRes = null;
@@ -583,7 +591,15 @@ ${JSON.stringify(reviews)}
             }
           } catch (e) {
             console.warn("[chat] vector search failed with filter, retrying without filter", e);
-            try { searchRes = await (vectorDatabaseSearch as any).execute?.({ query: semanticQuery, topK: searchWindow }); } catch (err) { console.warn("[chat] vector search retry failed", err); }
+            try {
+              if ((vectorDatabaseSearch as any).execute) {
+                searchRes = await (vectorDatabaseSearch as any).execute?.({ query: semanticQuery, topK: searchWindow });
+              } else {
+                searchRes = await (vectorDatabaseSearch as any)(semanticQuery, searchWindow);
+              }
+            } catch (err) {
+              console.warn("[chat] vector search retry failed", err);
+            }
           }
 
           const vectResults = await normalizeVectorResults(searchRes);
@@ -609,7 +625,7 @@ ${JSON.stringify(reviews)}
 
           // name-based fallback if needed (limit to requestedCount candidates)
           if (supabase && dbRows.length === 0 && vectResults.length) {
-            const maybeNames = vectResults.slice(0, Math.max(6, parseRequestedCount(composedQuery, 3, 12))).map((v) => v.name || v.title || v.vendor_name).filter(Boolean);
+            const maybeNames = vectResults.slice(0, Math.max(6, requestedCount)).map((v) => v.name || v.title || v.vendor_name).filter(Boolean);
             for (const nm of maybeNames) {
               try {
                 const { data } = await supabase.from("vendors").select("*").ilike("name", `%${nm}%`).limit(3);
@@ -638,7 +654,7 @@ ${JSON.stringify(reviews)}
           if (merged.length === 0 && dbRows.length) merged.push(...dbRows);
 
           // shortlist based on requestedCount (default 3)
-          const finalRequested = parseRequestedCount(composedQuery, 3, 12);
+          const finalRequested = requestedCount;
           const top = (merged.length ? merged : []).slice(0, finalRequested);
 
           if (budgetVal) {
