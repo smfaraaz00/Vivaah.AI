@@ -3,202 +3,426 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* ===== Base Vivaah Palette (kept safe, slightly enriched) ===== */
+/* =========================
+   PREMIUM VIVAAH GLOBALS
+   ========================= */
+
+/* ---- Color tokens (jewel + tuned rose-gold) ---- */
 :root {
-  --cream-bg: #f6f2e9; /* warmer, richer cream vs old dull beige */
-  --cream-bg-2: #fbf9f4;
-  --text-maroon: #5a2424; /* slightly deeper for readability */
-  --gold-1: #c89a4b;      /* richer gold */
-  --gold-2: #d7ae60;
+  /* Jewel / purple base */
+  --deep-plum: #4B1633;
+  --rich-burgundy: #6B2D4A;
+  --pearl-white: #FEFCF7;
+  --cream-luxury: #FAF8F3;
+  --blush-rose: #F5E4E8;
+  --soft-blush: #FDF7F8;
+  --accent-teal: #2C8C90;
 
-  --background: var(--cream-bg);
-  --foreground: var(--text-maroon);
+  /* Tuned rose-gold palette (recommended) */
+  --champagne-gold: #D5A48A; /* mid tone (less orange, more rose) */
+  --bright-gold:   #E9C5B0; /* highlight / sheen */
+  --warm-gold:     #B57A63; /* shadow / depth */
 
-  --card: var(--cream-bg-2);
-  --card-foreground: var(--text-maroon);
+  /* Legacy compatibility */
+  --cream-bg: var(--cream-luxury);
+  --cream-bg-2: var(--pearl-white);
+  --text-maroon: var(--deep-plum);
+  --gold-1: var(--champagne-gold);
+  --gold-2: var(--bright-gold);
 
-  --primary: var(--gold-1);
+  /* ShadCN mapped colors */
+  --background: var(--cream-luxury);
+  --foreground: var(--deep-plum);
+
+  --card: var(--pearl-white);
+  --card-foreground: var(--deep-plum);
+
+  --primary: var(--champagne-gold);
   --primary-foreground: #fff;
 
-  --secondary: #f7f2e9;
-  --secondary-foreground: var(--text-maroon);
+  --secondary: var(--blush-rose);
+  --secondary-foreground: var(--deep-plum);
 
-  --muted: #ece7db;
-  --muted-foreground: #7a5a5a;
+  --muted: var(--soft-blush);
+  --muted-foreground: var(--rich-burgundy);
 
-  --border: #e0d3b8;
-  --input: #e5decf;
-  --ring: var(--gold-1);
+  --border: rgba(213,164,128,0.12);
+  --input: rgba(213,164,128,0.14);
+  --ring: var(--champagne-gold);
 
-  --radius: 0.75rem;
+  --radius: 1rem;
+
+  /* Motion tokens */
+  --motion-fast: 120ms;
+  --motion-medium: 220ms;
+  --motion-slow: 420ms;
 }
 
-/* ===== Background ===== */
+/* ===== Page background & base typography ===== */
 body {
-  background: var(--cream-bg);
-  background-image: radial-gradient(
-      rgba(200, 150, 60, 0.04) 1px,
-      transparent 2px
-    ),
-    url("/subtle-mandala.png");
-  background-size: 22px 22px, 620px;
-  background-position: center, top right;
-  background-repeat: repeat, no-repeat;
-  color: var(--text-maroon);
+  background: linear-gradient(165deg, var(--cream-luxury) 0%, var(--pearl-white) 50%, var(--soft-blush) 100%);
+  background-attachment: fixed;
+  color: var(--deep-plum);
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-feature-settings: "kern" 1;
 }
 
-/* ===== Header ===== */
-.chat-header {
-  border-bottom: 2px solid var(--gold-1);
-  background: var(--cream-bg);
-  backdrop-filter: blur(4px);
-}
-
-/* Avatar ring subtle enhancement */
-.avatar-ring {
-  box-shadow: 0 2px 8px rgba(200,150,60,0.12);
-  border-radius: 9999px;
-}
-
-/* ===== Chat Bubbles ===== */
-.message-user {
-  background: #fffdfa;
-  border: 1px solid var(--gold-1);
+/* ===== Glass utilities ===== */
+.glass-premium {
+  background: rgba(255,255,255,0.86);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(213,164,128,0.12);
+  box-shadow:
+    0 6px 28px rgba(75,22,51,0.06),
+    0 1px 3px rgba(75,22,51,0.03),
+    inset 0 1px 0 rgba(255,255,255,0.6);
   border-radius: 16px;
-  padding: 12px 16px;
-  margin: 6px 0;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
-  max-width: 78%;
+}
+
+/* Header / footer glass */
+.glass-header {
+  background: linear-gradient(180deg, rgba(255,252,247,0.98), rgba(255,252,247,0.92));
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(90deg, transparent, var(--champagne-gold), var(--bright-gold), var(--champagne-gold), transparent) 1;
+  box-shadow: 0 4px 28px rgba(75,22,51,0.06);
+}
+
+/* ===== Avatar premium ===== */
+.avatar-premium {
+  position: relative;
+  display: inline-block;
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 3px rgba(213,164,128,0.15),
+    0 6px 22px rgba(213,164,128,0.22),
+    0 2px 8px rgba(75,22,51,0.08);
+}
+.avatar-premium::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--champagne-gold), var(--bright-gold), var(--warm-gold));
+  z-index: -1;
+  opacity: 0.28;
+  filter: blur(8px);
+}
+
+/* ===== Message bubbles (premium variants) ===== */
+/* User (right) - rich, jewel gradient */
+.message-user-premium {
+  background: linear-gradient(135deg, var(--deep-plum) 0%, var(--rich-burgundy) 100%);
+  color: #fff;
+  border-radius: 24px 24px 8px 24px;
+  padding: 14px 20px;
+  margin: 8px 0;
+  box-shadow:
+    0 10px 36px rgba(75,22,51,0.24),
+    0 2px 8px rgba(75,22,51,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.06);
+  max-width: 75%;
   align-self: flex-end;
   font-size: 0.95rem;
-}
-
-.message-assistant {
-  background: var(--cream-bg-2);
-  border-left: 4px solid var(--gold-1);
-  border-radius: 16px;
-  padding: 12px 16px;
-  margin: 6px 0;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
-  max-width: 78%;
-  align-self: flex-start;
-  font-size: 0.96rem;
-  line-height: 1.45rem;
-}
-
-/* Streaming shimmer */
-.message-assistant.streaming {
+  line-height: 1.45;
   position: relative;
   overflow: hidden;
 }
-.message-assistant.streaming::after {
+.message-user-premium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+}
+
+/* Assistant (left) - pale, rose-blush background with rose-gold border */
+.message-assistant-premium {
+  background: linear-gradient(135deg, var(--pearl-white) 0%, var(--soft-blush) 100%);
+  border-radius: 24px 24px 24px 8px;
+  padding: 16px 20px;
+  margin: 8px 0;
+  border-left: 4px solid transparent;
+  border-image: linear-gradient(180deg, var(--champagne-gold), var(--bright-gold)) 1;
+  box-shadow:
+    0 8px 30px rgba(75,22,51,0.08),
+    0 2px 8px rgba(75,22,51,0.04),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  max-width: 85%;
+  align-self: flex-start;
+  color: var(--deep-plum);
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+/* Streaming shimmer (tuned to rose-gold) */
+.message-assistant-premium.streaming {
+  position: relative;
+  overflow: hidden;
+}
+.message-assistant-premium.streaming::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.45) 50%,
-    rgba(255,255,255,0) 100%
+    transparent 0%,
+    rgba(233,197,176,0.22) 45%,
+    transparent 100%
   );
-  transform: translateX(-120%);
-  animation: shimmer 1.5s infinite;
+  transform: translateX(-100%);
+  animation: premium-shimmer 1.8s ease-in-out infinite;
 }
 
-/* ===== Input + Button Alignment (the main fix) ===== */
+/* streaming animation keyframes */
+@keyframes premium-shimmer {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ===== Metallic helpers & sheen (rose-gold) ===== */
+
+/* metallic gradient helper for larger surfaces */
+.metallic-gradient {
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.22) 0%,
+    var(--bright-gold) 12%,
+    var(--champagne-gold) 48%,
+    var(--warm-gold) 100%
+  );
+}
+
+/* subtle glow for CTAs */
+.glow-warm {
+  box-shadow: 0 10px 36px rgba(181,122,99,0.12), 0 2px 8px rgba(75,22,51,0.04);
+}
+
+/* metallic sheen overlay (use on interactive elements) */
+.metallic-sheen {
+  position: relative;
+  overflow: hidden;
+}
+.metallic-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255,255,255,0.45) 40%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.36s ease;
+  pointer-events: none;
+}
+.metallic-sheen:hover::after {
+  opacity: 1;
+}
+
+/* small shimmer for streaming (softer) */
+.message-assistant-premium.streaming::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(209,142,87,0.12) 50%,
+    transparent 100%
+  );
+}
+
+/* ===== Input / Pill / Button alignment (robust) ===== */
+
+/* input pill container (keeps space for button) */
 .input-pill {
-  border-radius: 9999px;
+  border-radius: 999px;
   height: 56px;
   display: flex;
   align-items: center;
-  padding-left: 1.1rem;
-  padding-right: 4.8rem; /* ensures text never hides */
-  background: #fff;
-  border: 1px solid var(--gold-1);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding-left: 1rem;
+  padding-right: 4.8rem; /* reserve button area */
+  background: var(--pearl-white);
+  border: 1px solid rgba(213,164,128,0.10);
+  box-shadow: 0 6px 20px rgba(75,22,51,0.04);
   position: relative;
 }
 
-.input-pill input {
+/* input field styling inside pill */
+.input-pill input,
+.input-pill textarea {
   width: 100%;
   border: none !important;
   background: transparent !important;
   padding-right: 0 !important;
   font-size: 1rem;
-  color: var(--text-maroon);
+  color: var(--deep-plum);
 }
-.input-pill input:focus {
+.input-pill input:focus,
+.input-pill textarea:focus {
   outline: none;
   box-shadow: none;
 }
 
-/* ===== Send / Stop Button (fully fixed alignment) ===== */
+/* send / stop icon button inside the pill */
 .button-icon {
   position: absolute !important;
   right: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
-  background: linear-gradient(180deg, var(--gold-1), var(--gold-2));
-  color: white !important;
-  display: flex;
+  background: linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 42%, var(--warm-gold) 100%);
+  color: #fff !important;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none !important;
-  box-shadow: 0 4px 12px rgba(200,150,60,0.3);
-  z-index: 20;
+  box-shadow: 0 8px 26px rgba(181,122,99,0.18), inset 0 1px 0 rgba(255,255,255,0.12);
+  z-index: 30;
+  transition: transform var(--motion-fast) ease, filter var(--motion-fast) ease;
 }
+.button-icon svg { stroke: #fff !important; fill: #fff !important; }
+.button-icon:hover:not(:disabled) { transform: translateY(-50%) scale(1.05); filter: brightness(1.02); }
+.button-icon:disabled { opacity: 0.55; cursor: not-allowed; transform: translateY(-50%); }
 
-.button-icon svg {
-  stroke: white !important;
-  fill: white !important;
-}
-
-.button-icon:hover {
-  transform: translateY(-50%) scale(1.05);
-}
-
+/* stream-stop variant (deep red) */
 .button-icon.stream-stop {
-  background: linear-gradient(180deg, #aa3c3c, #882626);
-  box-shadow: 0 4px 12px rgba(140,40,40,0.3);
+  background: linear-gradient(180deg, #a23c3c 0%, #7a1f1f 100%);
+  box-shadow: 0 8px 26px rgba(120,40,40,0.18);
 }
 
-/* Disabled state */
-.button-icon:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: translateY(-50%);
+/* ===== Buttons (premium variants) ===== */
+.btn-premium {
+  background: linear-gradient(135deg, var(--bright-gold) 0%, var(--champagne-gold) 45%, var(--warm-gold) 100%);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--motion-medium) ease, box-shadow var(--motion-medium) ease;
+  box-shadow: 0 8px 34px rgba(181,122,99,0.20), inset 0 1px 0 rgba(255,255,255,0.14);
+  position: relative;
+  overflow: hidden;
+}
+.btn-premium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent);
+  transition: left 0.5s ease;
+}
+.btn-premium:hover::before { left: 100%; }
+.btn-premium:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 44px rgba(181,122,99,0.28); }
+.btn-premium:active { transform: translateY(-1px) scale(1.02); }
+.btn-premium:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* outline variant */
+.btn-outline-premium {
+  background: transparent;
+  color: var(--deep-plum);
+  border: 1.5px solid rgba(213,164,128,0.18);
+  border-radius: 24px;
+  padding: 8px 18px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-outline-premium:hover { background: linear-gradient(135deg, var(--bright-gold), var(--champagne-gold)); color: #fff; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(181,122,99,0.18); }
+
+/* ===== Vendor cards & accents ===== */
+.vendor-card-premium {
+  background: linear-gradient(135deg, var(--pearl-white) 0%, #ffffff 100%);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid rgba(213,164,128,0.12);
+  box-shadow: 0 10px 36px rgba(75,22,51,0.08), 0 2px 10px rgba(75,22,51,0.04);
+  transition: transform var(--motion-medium) ease, box-shadow var(--motion-medium) ease, border-color var(--motion-medium) ease;
+  position: relative;
+  overflow: hidden;
+}
+.vendor-card-premium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--bright-gold), var(--champagne-gold), var(--bright-gold));
+  opacity: 0.95;
+}
+.vendor-card-premium:hover { transform: translateY(-4px); box-shadow: 0 18px 52px rgba(75,22,51,0.12); border-color: rgba(213,164,128,0.18); }
+
+/* vendor image */
+.vendor-image-premium {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(75,22,51,0.08);
+  border: 2px solid rgba(213,164,128,0.14);
 }
 
-/* ===== Placeholder ===== */
-::placeholder {
-  color: rgba(90, 36, 36, 0.45);
-}
+/* ===== Decorative / utility ===== */
+.heading-premium { font-family: var(--font-cormorant), Georgia, serif; font-weight: 600; letter-spacing: 0.02em; color: var(--deep-plum); }
+.text-gold-gradient { background: linear-gradient(135deg, var(--champagne-gold), var(--bright-gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.rating-premium { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--champagne-gold), var(--bright-gold)); color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; box-shadow: 0 6px 22px rgba(181,122,99,0.18); }
+.gold-divider { height: 2px; background: linear-gradient(90deg, transparent, rgba(209,142,87,0.22), transparent); margin: 16px 0; border: none; border-radius: 2px; }
+.border-gold-soft { border: 1px solid rgba(181,122,99,0.08); }
+.glow-gold { box-shadow: 0 0 40px rgba(181,122,99,0.18); }
 
-/* ===== Footer ===== */
-.footer-small {
-  text-align: center;
-  font-size: 0.78rem;
-  color: rgba(90, 36, 36, 0.65);
-}
+/* ===== Scrollbar styling (subtle) ===== */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--soft-blush); border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--bright-gold), var(--warm-gold)); border-radius: 10px; border: 2px solid var(--soft-blush); }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--champagne-gold), var(--bright-gold)); }
+
+/* ===== Accessibility & focus ===== */
+:focus-visible { outline: 3px solid rgba(213,164,128,0.18); outline-offset: 2px; border-radius: 6px; }
+
+/* selection */
+::selection { background: rgba(213,164,128,0.18); color: var(--deep-plum); }
 
 /* ===== Animations ===== */
-@keyframes shimmer {
-  0% { transform: translateX(-120%); }
-  60% { transform: translateX(120%); }
-  100% { transform: translateX(120%); }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in-up { animation: fadeInUp 0.36s ease-out forwards; }
+
+/* pulse gold */
+@keyframes pulse-gold { 0%,100% { box-shadow: 0 0 0 0 rgba(213,164,128,0.18); } 50% { box-shadow: 0 0 0 10px rgba(213,164,128,0); } }
+.pulse-gold { animation: pulse-gold 2.2s infinite; }
+
+/* ===== Responsive tweaks ===== */
+@media (max-width: 640px) {
+  .message-user-premium, .message-assistant-premium { max-width: 92%; padding: 12px 16px; }
+  .vendor-card-premium { padding: 16px; }
+  .input-pill { padding-right: 4rem; height: 52px; }
+  .button-icon { width: 40px; height: 40px; right: 0.9rem; }
+  .btn-premium { width: 42px; height: 42px; }
 }
 
-/* ===== Responsive ===== */
-@media (max-width: 640px) {
-  .input-pill {
-    padding-right: 4.2rem;
-  }
-  .button-icon {
-    width: 38px;
-    height: 38px;
-    right: 0.9rem;
-  }
+/* ===== Compatibility fallbacks (legacy classes) ===== */
+.message-user-old { background: #fffdfa; border: 1px solid var(--gold-1); border-radius: 14px; }
+.message-assistant-old { background: var(--cream-bg-2); border-left: 4px solid var(--gold-1); border-radius: 12px; }
+
+/* ===== Small dev helper: quick tune patch (do not remove) ===== */
+/* Use this block to quickly override variables in dev without touching root */
+:root[data-theme="rose-gold-test"] {
+  --champagne-gold: #D5A48A;
+  --bright-gold: #E9C5B0;
+  --warm-gold: #B57A63;
 }
