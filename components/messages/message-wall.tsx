@@ -1,223 +1,237 @@
-// components/messages/message-wall.tsx
-"use client";
-
-import React, { useEffect, useRef, useMemo } from "react";
-import type { UIMessage } from "ai"; // keep only for types; remove if your project doesn't expose this
-import { AssistantMessage } from "./assistant-message";
+import { UIMessage } from "ai";
+import { useEffect, useRef } from "react";
+// Keep your original imports, but we will guard against them being undefined at runtime.
 import { UserMessage } from "./user-message";
-import { ReasoningPart } from "./reasoning-part";
+import { AssistantMessage } from "./assistant-message";
+// Use plain img to avoid next/image domain config issues
+// import Image from "next/image";
 
-type MessageWallProps = {
-  messages?: UIMessage[]; // prefer messages passed from parent
-  status?: "ready" | "streaming" | "submitted" | "error";
+type Props = {
+  messages: UIMessage[];
+  status?: string;
   durations?: Record<string, number>;
   onDurationChange?: (key: string, duration: number) => void;
-  // optional: allow parent to control auto-scroll behaviour
-  autoScroll?: boolean;
-  className?: string;
 };
 
-function stripJsonSentinelsFromText(text: string): string {
-  if (!text) return text;
-  // Remove known sentinel blocks from visible text
-  // Patterns used by the route: __VENDOR_HITS_JSON__, __VENDOR_DETAILS_JSON__, __VENDOR_REVIEWS_JSON__, ___GUIDE_JSON___ etc.
-  return text
-    .replace(/__VENDOR_HITS_JSON__[\s\S]*?__END_VENDOR_HITS_JSON__/g, "")
-    .replace(/__VENDOR_DETAILS_JSON__[\s\S]*?__END_VENDOR_DETAILS_JSON__/g, "")
-    .replace(/__VENDOR_REVIEWS_JSON__[\s\S]*?__END_VENDOR_REVIEWS_JSON__/g, "")
-    .replace(/___GUIDE_JSON___[\s\S]*?___END_GUIDE_JSON___/g, "")
-    .trim();
-}
+type VendorHit = {
+  id: string | null;
+  name: string | null;
+  category?: string | null;
+  city?: string | null;
+  price_min?: number | null;
+  price_max?: number | null;
+  is_veg?: boolean | null;
+  rating?: number | null;
+  contact?: string | null;
+  images?: string[] | null;
+  short_description?: string | null;
+  raw?: any;
+};
 
-/** Try to parse any embedded sentinel JSON block from a message text.
- *  Returns parsed object or null.
- */
-function extractToolResultFromText(text: string): any | null {
-  if (!text) return null;
+export function MessageWall({ messages, status, durations, onDurationChange }: Props) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // try common sentinel patterns in the route
-  const patterns = [
-    { start: "__VENDOR_HITS_JSON__", end: "__END_VENDOR_HITS_JSON__" },
-    { start: "__VENDOR_DETAILS_JSON__", end: "__END_VENDOR_DETAILS_JSON__" },
-    { start: "__VENDOR_REVIEWS_JSON__", end: "__END_VENDOR_REVIEWS_JSON__" },
-    { start: "___GUIDE_JSON___", end: "___END_GUIDE_JSON___" },
-  ];
-
-  for (const p of patterns) {
-    const si = text.indexOf(p.start);
-    const ei = text.indexOf(p.end);
-    if (si >= 0 && ei > si) {
-      const jsonStr = text.slice(si + p.start.length, ei).trim();
-      try {
-        return JSON.parse(jsonStr);
-      } catch (e) {
-        // invalid JSON — attempt safe extraction by finding first { ... }
-        const firstBrace = jsonStr.indexOf("{");
-        const lastBrace = jsonStr.lastIndexOf("}");
-        if (firstBrace >= 0 && lastBrace > firstBrace) {
-          const maybe = jsonStr.slice(firstBrace, lastBrace + 1);
-          try {
-            return JSON.parse(maybe);
-          } catch (err) {
-            return null;
-          }
-        }
-        return null;
-      }
-    }
-  }
-
-  return null;
-}
-
-/** Derive a displayable plain text from message.parts while filtering sentinel parts. */
-function deriveVisibleTextFromParts(parts: any[] = []): string {
-  const raw = (parts || [])
-    .map((p: any) => (p.type === "text" ? (p.text ?? "") : ""))
-    .join("");
-  return stripJsonSentinelsFromText(raw);
-}
-
-/** Attempt to get toolResult from the message parts (either as a separate part or embedded text). */
-function deriveToolResultFromParts(parts: any[] = []): any | null {
-  if (!parts || !parts.length) return null;
-
-  // Some producers might add a single text part containing the sentinel block.
-  const text = parts.map((p: any) => (p.type === "text" ? (p.text ?? "") : "")).join("");
-  const fromText = extractToolResultFromText(text);
-  if (fromText) return fromText;
-
-  // Some systems might add a structured 'tool' part; try to find it.
-  for (const p of parts) {
-    if (!p) continue;
-    if (p.type === "tool-result" && p.result) return p.result;
-    // if metadata-like objects exist, check common keys
-    if (p.type === "json" && p.json) return p.json;
-    if (p.type === "data" && p.data) return p.data;
-  }
-
-  return null;
-}
-
-export function MessageWall(props: MessageWallProps) {
-  const {
-    messages: propMessages,
-    status = "ready",
-    durations = {},
-    onDurationChange = () => {},
-    autoScroll = true,
-    className = "",
-  } = props;
-
-  // Use the messages passed explicitly. This component purposefully does NOT call useChat()
-  // to avoid coupling this file to a particular hook library/version.
-  const messages = propMessages ?? [];
-
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // Combine messages with derived visible text and toolResult
-  const enriched = useMemo(() => {
-    return (messages || []).map((m) => {
-      const parts = (m.parts || []) as any[];
-      const visibleText = deriveVisibleTextFromParts(parts);
-      const toolResult = deriveToolResultFromParts(parts);
-      return {
-        message: m,
-        text: visibleText,
-        toolResult,
-      };
-    });
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (!autoScroll) return;
+  // ---- Guard component references so invalid imports don't crash the whole app ----
+  const SafeUserMessage: any =
+    typeof UserMessage === "function"
+      ? UserMessage
+      : // fallback simple renderer
+        ({ message }: { message: UIMessage }) => {
+          const text = (message.parts || []).map((p: any) => (p?.type === "text" ? p.text || "" : "")).join("");
+          return <div className="inline-block bg-white p-3 rounded shadow text-sm">{text}</div>;
+        };
+
+  const SafeAssistantMessage: any =
+    typeof AssistantMessage === "function"
+      ? AssistantMessage
+      : // fallback simple renderer for assistant content
+        ({ message }: { message: UIMessage }) => {
+          const text = (message.parts || []).map((p: any) => (p?.type === "text" ? p.text || "" : "")).join("");
+          return <div className="inline-block bg-white p-3 rounded shadow text-sm">{text}</div>;
+        };
+
+  // If either import was undefined, log which one so we can fix import paths.
+  if (typeof UserMessage !== "function") {
+    // eslint-disable-next-line no-console
+    console.warn("MessageWall: UserMessage import is not a function. Falling back to SafeUserMessage. Check ./user-message export (named vs default).", UserMessage);
+  }
+  if (typeof AssistantMessage !== "function") {
+    // eslint-disable-next-line no-console
+    console.warn("MessageWall: AssistantMessage import is not a function. Falling back to SafeAssistantMessage. Check ./assistant-message export (named vs default).", AssistantMessage);
+  }
+
+  // Helper: join UIMessage parts into plain text
+  function messageToText(m: UIMessage): string {
     try {
-      const el = scrollRef.current;
-      if (!el) return;
-      // scroll smoothly a bit delayed to allow render
-      const id = window.setTimeout(() => {
-        el.scrollTop = el.scrollHeight;
-      }, 30);
-      return () => window.clearTimeout(id);
+      if (m.parts && Array.isArray(m.parts)) {
+        return m.parts.map((p: any) => (p?.type === "text" ? (p.text ?? "") : "")).join("");
+      }
+      // fallback to `content` if present
+      // @ts-ignore
+      if (m.content && typeof m.content === "string") return m.content;
+      return "";
     } catch (e) {
-      // ignore
+      return "";
     }
-  }, [enriched.length, autoScroll]);
+  }
+
+  // Helper: extract JSON sentinel from assistant text
+  function extractVendorHitsFromText(text: string): VendorHit[] | null {
+    const startToken = "__VENDOR_HITS_JSON__";
+    const endToken = "__END_VENDOR_HITS_JSON__";
+    const s = text.indexOf(startToken);
+    const e = text.indexOf(endToken);
+    if (s === -1 || e === -1 || e <= s) return null;
+    const jsonStr = text.slice(s + startToken.length, e);
+    try {
+      const parsed = JSON.parse(jsonStr);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("MessageWall: failed to parse vendor JSON sentinel", err);
+      return null;
+    }
+  }
+
+  // Helper: remove sentinel block from text, return trimmed human text
+  function stripSentinelFromText(text: string): string {
+    const startToken = "__VENDOR_HITS_JSON__";
+    const idx = text.indexOf(startToken);
+    if (idx === -1) return text;
+    return text.slice(0, idx).trim();
+  }
+
+  // Emit window events so outer client can handle follow-ups without changing props
+  function emitMoreDetails(vendorName: string | null) {
+    try {
+      const ev = new CustomEvent("chat_action_more_details", { detail: { vendorName } });
+      window.dispatchEvent(ev);
+    } catch (e) {
+      // ignore where CustomEvent is restricted
+    }
+  }
+  function emitReviews(vendorName: string | null) {
+    try {
+      const ev = new CustomEvent("chat_action_reviews", { detail: { vendorName } });
+      window.dispatchEvent(ev);
+    } catch (e) {}
+  }
+
+  function VendorCard({ v }: { v: VendorHit }) {
+    return (
+      <div className="w-full border rounded-lg p-4 bg-white shadow-sm flex gap-4">
+        <div className="w-24 h-24 rounded overflow-hidden bg-gray-100 flex-shrink-0">
+          {v.images && v.images.length ? (
+            // use regular img tag to avoid next/image domain config problems during debugging
+            // ensure URLs are absolute (http(s)://...) — if they are relative and 404, they'll still 404.
+            // We use onError to silence broken images.
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <img
+              src={v.images[0]}
+              style={{ width: 96, height: 96, objectFit: "cover" }}
+              onError={(e) => {
+                // hide broken image
+                // @ts-ignore
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">No image</div>
+          )}
+        </div>
+
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="font-semibold text-sm">{v.name}</div>
+              <div className="text-xs text-gray-600">{v.category ?? ""} • {v.city ?? ""}</div>
+            </div>
+            <div className="text-right text-xs">
+              {v.rating ? <div className="font-medium">{v.rating}/5</div> : null}
+              <div className="text-gray-500">{v.is_veg === true ? "Veg-only" : v.is_veg === false ? "Veg & Non-veg" : ""}</div>
+            </div>
+          </div>
+
+          {v.short_description ? <div className="mt-2 text-sm text-gray-700">{v.short_description}</div> : null}
+
+          <div className="mt-3 flex gap-2">
+            <button
+              className="px-3 py-1 rounded bg-[var(--gold-2)] text-white text-sm"
+              onClick={() => emitMoreDetails(v.name)}
+            >
+              More details
+            </button>
+
+            <button
+              className="px-3 py-1 rounded border text-sm"
+              onClick={() => emitReviews(v.name)}
+            >
+              Reviews
+            </button>
+
+            {v.contact && (
+              <a className="ml-auto text-sm underline text-[var(--text-maroon)]" href={`tel:${v.contact}`}>
+                Call
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      ref={scrollRef}
-      className={`message-wall w-full overflow-auto px-6 py-6 ${className}`}
-      style={{ maxHeight: "70vh" }}
-      data-status={status}
-    >
-      <div className="space-y-6">
-        {enriched.map((en, idx) => {
-          const m = en.message;
-          const isAssistant = m.role === "assistant" || m.role === "tool";
-          const isUser = m.role === "user";
-          const isReasoning = (m.metadata && m.metadata.type === "reasoning") || m.role === "system";
+    <div className="relative max-w-3xl w-full">
+      <div className="relative flex flex-col gap-4">
+        {messages.map((message, messageIndex) => {
+          const isLastMessage = messageIndex === messages.length - 1;
+          const text = messageToText(message);
+          const hits = message.role === "assistant" ? extractVendorHitsFromText(text) : null;
+          const humanText = message.role === "assistant" ? stripSentinelFromText(text) : text;
 
-          // Determine if this is the last message in the list
-          const isLastMessage = idx === enriched.length - 1;
+          // Build a simple shallow clone object used only for passing to AssistantMessage
+          const safeMessageForAssistant: UIMessage = (() => {
+            if (message.role !== "assistant") return message;
+            const clone: any = { ...message };
+            clone.parts = [{ type: "text", text: humanText }];
+            if (clone.content) clone.content = humanText;
+            return clone;
+          })();
 
-          if (isAssistant) {
-            return (
-              <AssistantMessage
-                key={(m.id as string) ?? `assistant-${idx}`}
-                message={m}
-                text={en.text}
-                toolResult={en.toolResult}
-                status={status}
-                isLastMessage={isLastMessage}
-                durations={durations}
-                onDurationChange={onDurationChange}
-              />
-            );
-          }
-
-          if (isUser) {
-            return (
-              <UserMessage
-                key={(m.id as string) ?? `user-${idx}`}
-                message={m}
-                text={en.text}
-                // user messages rarely have toolResult — still pass for completeness
-                toolResult={en.toolResult}
-                isLastMessage={isLastMessage}
-              />
-            );
-          }
-
-          if (isReasoning) {
-            return (
-              <ReasoningPart
-                key={(m.id as string) ?? `reasoning-${idx}`}
-                message={m}
-                text={en.text}
-                isLastMessage={isLastMessage}
-              />
-            );
-          }
-
-          // Generic fallback: render as assistant message
           return (
-            <AssistantMessage
-              key={(m.id as string) ?? `fallback-${idx}`}
-              message={m}
-              text={en.text}
-              toolResult={en.toolResult}
-              status={status}
-              isLastMessage={isLastMessage}
-              durations={durations}
-              onDurationChange={onDurationChange}
-            />
+            <div key={message.id} className="w-full">
+              {message.role === "user" ? (
+                <SafeUserMessage message={message} />
+              ) : (
+                <>
+                  <SafeAssistantMessage
+                    message={safeMessageForAssistant}
+                    status={status}
+                    isLastMessage={isLastMessage}
+                    durations={durations}
+                    onDurationChange={onDurationChange}
+                  />
+
+                  {/* if there are vendor hits, render cards */}
+                  {hits && hits.length ? (
+                    <div className="mt-3 grid gap-3">
+                      {hits.map((h) => (
+                        <VendorCard key={h.id ?? h.name ?? Math.random()} v={h as VendorHit} />
+                      ))}
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </div>
           );
         })}
+
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );
 }
-
-export default MessageWall;
