@@ -22,7 +22,7 @@ import { getVendorDetails } from "@/lib/db/getVendorDetails";
  * Chat route with:
  * - vendor mode (vector search + DB enrichment)
  * - "More details" and "Reviews"
- * - GUIDE flow for curated guides (structured JSON sentinel + pretty text)
+ * - GUIDE flow for curated guides (structured events + pretty text)
  */
 
 // Safe supabase getter — avoid creating client at module load time (prevents build error)
