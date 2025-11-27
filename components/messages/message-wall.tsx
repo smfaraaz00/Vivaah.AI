@@ -1,80 +1,92 @@
 // components/messages/message-wall.tsx
-// Named export: MessageWall
-// Accepts optional props so parent pages/components can pass data (backwards compatible).
-
+"use client";
 import React, { useEffect, useRef, useMemo } from "react";
-import { useChat } from "ai";
+import { useChat } from "@ai-sdk/react"; // <-- correct package for hook
 import type { UIMessage } from "ai";
 import { AssistantMessage } from "./assistant-message";
 import { UserMessage } from "./user-message";
 
-/** Props shape your page.tsx appears to pass */
-export type MessageWallProps = {
-  messages?: UIMessage[]; // optional — if omitted we use useChat().messages
-  status?: "error" | "streaming" | "submitted" | "ready" | string;
-  durations?: Record<string, number>;
-  onDurationChange?: (key: string, duration: number) => void;
-};
+/**
+ * Simple MessageWall that consumes useChat() messages and renders them.
+ * Exports a named MessageWall so page.tsx's `import { MessageWall }` works.
+ *
+ * This component intentionally avoids printing any raw JSON sentinels
+ * into the visible chat stream — structured payloads (tool-result)
+ * are passed to AssistantMessage via props for UI rendering.
+ */
 
-export function MessageWall(props: MessageWallProps = {}) {
-  // If parent provided messages (page.tsx) prefer that; otherwise use hook
-  const chat = useChat();
-  const messagesFromHook = chat?.messages;
-  const messages = props.messages ?? messagesFromHook ?? [];
+export function MessageWall() {
+  const { messages, status, clear } = useChat();
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // last message id for scroll effect
-  const lastMessageId = messages.length ? messages[messages.length - 1].id : null;
+  // Flatten messages to a stable array for rendering
+  const renderedMessages = useMemo(() => (messages || []).slice(), [messages]);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // Auto-scroll when new messages arrive
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    const el = containerRef.current;
+    const el = scrollRef.current;
     if (!el) return;
-    // smooth scrolling; if you want instant use behavior: "auto"
+    // small timeout to allow DOM to update
     requestAnimationFrame(() => {
-      try {
-        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-      } catch {
-        el.scrollTop = el.scrollHeight;
-      }
+      el.scrollTop = el.scrollHeight;
     });
-  }, [lastMessageId]);
-
-  // stable map of messages to avoid re-render churn in large lists
-  const items = useMemo(() => messages.slice(), [messages]);
+  }, [renderedMessages.length]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full overflow-y-auto px-6 py-6"
-      role="log"
-      aria-live="polite"
-    >
-      <div className="max-w-4xl mx-auto flex flex-col gap-6">
-        {items.length === 0 ? (
-          <div className="text-center text-sm text-muted-foreground py-8">No messages yet</div>
-        ) : (
-          items.map((m: UIMessage) => {
-            if (m.role === "user") {
-              return <UserMessage key={m.id} message={m} />;
-            }
+    <div className="message-wall h-full flex flex-col">
+      <div
+        ref={scrollRef}
+        className="messages flex-1 overflow-auto px-4 py-3 space-y-4"
+        data-testid="message-wall-scroll"
+      >
+        {renderedMessages.map((m: UIMessage, i: number) => {
+          const role = m.role ?? "assistant";
+          // combine text parts into one string
+          const textParts = (m.parts || [])
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text ?? "")
+            .join("");
 
-            if (m.role === "assistant") {
-              // AssistantMessage should handle rendering tool-result events, images, cards, etc.
-              return <AssistantMessage key={m.id} message={m} />;
-            }
+          // find any tool-result parts (the streaming protocol writes tool-result events separately)
+          // In some SDKs tool results come as `parts` too; handle conservatively:
+          const toolResultPart = (m.parts || []).find((p: any) => p.type === "tool-result" || p.type === "json");
+          const toolResult = toolResultPart ? toolResultPart.content ?? toolResultPart.value ?? toolResultPart : null;
 
-            // fallback for system/other roles
+          // Provide both the raw message and parsed tool result to AssistantMessage so it can render cards/rows.
+          if (role === "user") {
+            return <UserMessage key={m.id ?? i} message={m} text={textParts} />;
+          } else {
             return (
-              <div key={m.id} className="text-sm text-muted-foreground">
-                {(m.parts || []).map((p: any, i: number) => (
-                  <div key={`${m.id}-part-${i}`}>{p.type === "text" ? p.text : `[${p.type}]`}</div>
-                ))}
-              </div>
+              <AssistantMessage
+                key={m.id ?? i}
+                message={m}
+                text={textParts}
+                toolResult={toolResult}
+              />
             );
-          })
-        )}
+          }
+        })}
+      </div>
+
+      <div className="chat-status px-4 py-2 border-t text-sm text-muted-foreground">
+        <div className="flex items-center justify-between">
+          <div>
+            {status === "streaming" && <span>Assistant is typing…</span>}
+            {status === "error" && <span className="text-red-500">Error</span>}
+            {status === "ready" && <span>Connected</span>}
+            {status === "submitted" && <span>Sending…</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => clear?.()}
+              className="text-xs underline"
+              title="Clear chat"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
