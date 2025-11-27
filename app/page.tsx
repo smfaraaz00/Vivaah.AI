@@ -337,7 +337,7 @@ export default function Chat() {
           <div className="footer-premium mt-3">
             © {new Date().getFullYear()} {OWNER_NAME} •{" "}
             <Link href="/terms">Terms</Link>
-            {" "}• Powered by Vivaah AI
+            {" "}• Powered by Vivaah AI | Demo prototype (includes dummy vendor data. Real data available for caterers)
           </div>
         </div>
       </main>
