@@ -128,13 +128,45 @@ function isGuideQuery(text: string | null) {
     && /\bcaterer|caterers|vendors|venues\b/.test(t);
 }
 
+// parse numbers written as digits or words ("two", "three") in the user text
+function parseRequestedCount(text: string | null, defaultCount = 3, maxCount = 12) {
+  if (!text) return defaultCount;
+  // direct digits first
+  const digitMatch = text.match(/\b(?:top|show|give me|i want|please show|show me)?\s*(\d{1,2})\b/i);
+  if (digitMatch && digitMatch[1]) {
+    const n = Math.min(maxCount, Math.max(1, Number(digitMatch[1])));
+    return n;
+  }
+  // word numbers (one..twelve)
+  const wordMap: Record<string, number> = {
+    one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10, eleven:11, twelve:12
+  };
+  const wordMatch = text.toLowerCase().match(new RegExp("\\b(" + Object.keys(wordMap).join("|") + ")\\b"));
+  if (wordMatch && wordMap[wordMatch[1]]) return Math.min(maxCount, Math.max(1, wordMap[wordMatch[1]]));
+  return defaultCount;
+}
+
 async function normalizeVectorResults(result: any): Promise<any[]> {
   try {
     if (!result) return [];
     if (Array.isArray(result)) return result as any[];
+
+    // Pinecone / vector DB match-style normalization
     if (Array.isArray(result.matches)) {
-      return result.matches.map((m: any) => ({ ...(m.metadata ?? {}), _score: m.score ?? m.similarity, _id: m.id }));
+      return result.matches.map((m: any) => {
+        const md = (m.metadata ?? {});
+        const vendor_id = md.vendor_id ?? md.vendorId ?? md.id ?? m.id ?? null;
+        const name = md.name ?? md.title ?? md.vendor_name ?? null;
+        return {
+          ...md,
+          vendor_id,
+          name,
+          _score: m.score ?? m.similarity,
+          _id: m.id
+        };
+      });
     }
+
     if (Array.isArray(result.hits)) {
       return result.hits.map((h: any) => ({ ...(h.document ?? h.payload ?? h.metadata ?? h), _score: h.score ?? h._score, _id: h.id }));
     }
@@ -248,6 +280,10 @@ export async function POST(req: Request) {
           const composedQuery = (latestUserText || "").trim();
           console.log("[chat][vendor] query:", composedQuery);
 
+          // determine how many results to show (default 3)
+          const requestedCount = parseRequestedCount(composedQuery, 3, 12);
+          console.log("[chat] requestedCount:", requestedCount);
+
           // ---------- GUIDE ----------
           if (isGuideQuery(composedQuery)) {
             try {
@@ -260,17 +296,18 @@ export async function POST(req: Request) {
                 ? supabase.from("vendors").select("id, name, short_description, min_price, max_price, currency, city, category, avg_rating, rating_count")
                 : null;
 
-              const luxuryQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("avg_rating", { ascending: false }).limit(6) : { data: [] };
-              const vegQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).ilike("short_description", "%veg%").order("avg_rating", { ascending: false }).limit(6) : { data: [] };
-              const regionalQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("rating_count", { ascending: false }).limit(8) : { data: [] };
-              const budgetQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("min_price", { ascending: true }).limit(8) : { data: [] };
+              // use requestedCount instead of hard-coded 6
+              const luxuryQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("avg_rating", { ascending: false }).limit(requestedCount) : { data: [] };
+              const vegQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).ilike("short_description", "%veg%").order("avg_rating", { ascending: false }).limit(requestedCount) : { data: [] };
+              const regionalQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("rating_count", { ascending: false }).limit(Math.max(requestedCount, 4)) : { data: [] };
+              const budgetQ = qBase ? qBase.eq("category", category).ilike("city", `%${city}%`).order("min_price", { ascending: true }).limit(Math.max(requestedCount, 4)) : { data: [] };
 
               const [luxRes, vegRes, regRes, budRes] = qBase ? await Promise.all([luxuryQ, vegQ, regionalQ, budgetQ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
-              const luxury = (luxRes?.data || []).slice(0, 6);
-              const veg = (vegRes?.data || []).slice(0, 6);
-              const regional = (regRes?.data || []).slice(0, 6);
-              const budget = (budRes?.data || []).slice(0, 6);
+              const luxury = (luxRes?.data || []).slice(0, requestedCount);
+              const veg = (vegRes?.data || []).slice(0, requestedCount);
+              const regional = (regRes?.data || []).slice(0, requestedCount);
+              const budget = (budRes?.data || []).slice(0, requestedCount);
 
               const facts = {
                 city,
@@ -403,17 +440,6 @@ ${JSON.stringify(factBlock)}
 
             writer.write({ type: "text-delta", id: textId, delta: llm || "Could not generate vendor analysis." });
 
-            // emit JSON sentinel for UI
-            //try {
-             // writer.write({
-             //   type: "text-delta",
-             //   id: textId,
-            //    delta: `\n\n__VENDOR_DETAILS_JSON__${JSON.stringify(factBlock)}__END_VENDOR_DETAILS_JSON__`,
-            //  });
-           // } catch (e) {
-             // console.warn("[more-details] failed to emit sentinel", e);
-            //}
-
             writer.write({ type: "text-end", id: textId });
             writer.write({ type: "finish" });
             return;
@@ -492,32 +518,52 @@ ${JSON.stringify(reviews)}
           // detect budget/category/specificity
           const budgetVal = parseBudget(composedQuery);
           const categoryVal = parseCategory(composedQuery);
-          const looksSpecific = Boolean(budgetVal || categoryVal || /\b(powai|bandra|andheri|khar|juhu|thane|navi mumbai|lower parel|colaba|churchgate)\b/i.test(composedQuery));
-          if (!looksSpecific) {
+          const looksSpecificSemantic = Boolean(budgetVal || categoryVal || /\b(powai|bandra|andheri|khar|juhu|thane|navi mumbai|lower parel|colaba|churchgate)\b/i.test(composedQuery));
+          if (!looksSpecificSemantic) {
             writer.write({ type: "text-delta", id: textId, delta: "Okay — any category, budget, neighbourhood, or style to narrow it down?" });
             writer.write({ type: "text-end", id: textId });
             writer.write({ type: "finish" });
             return;
           }
 
+          // build semantic query
           const semanticParts = [composedQuery];
           if (categoryVal) semanticParts.push(categoryVal);
           if (budgetVal) semanticParts.push(`budget ${budgetVal}`);
           const semanticQuery = semanticParts.join(" ");
 
+          // build metadata filter for vector search
+          const metadataFilter: any = { type: { $eq: "vendor" } };
+          const cityMatch = composedQuery.match(/\b(mumbai|bombay)\b/i);
+          if (cityMatch) metadataFilter.city = { $eq: cityMatch[1].toLowerCase() };
+          if (categoryVal) metadataFilter.category = { $eq: categoryVal.toLowerCase() };
+
+          // choose searchWindow relative to requestedCount
+          const searchWindow = Math.max(12, parseRequestedCount(composedQuery, 3, 12) * 4);
+          console.log("[chat] searchWindow:", searchWindow, "metadataFilter:", metadataFilter);
+
           let searchRes = null;
           try {
-            searchRes = await (vectorDatabaseSearch as any).execute?.({ query: semanticQuery, topK: 20 });
-          } catch {
-            try {
-              searchRes = await (vectorDatabaseSearch as any)(semanticQuery, 20);
-            } catch (e) {
-              console.warn("[chat] vector search failed", e);
+            if ((vectorDatabaseSearch as any).execute) {
+              searchRes = await (vectorDatabaseSearch as any).execute?.({ query: semanticQuery, topK: searchWindow, filter: metadataFilter });
+            } else {
+              searchRes = await (vectorDatabaseSearch as any)(semanticQuery, searchWindow, { filter: metadataFilter });
             }
+          } catch (e) {
+            console.warn("[chat] vector search failed with filter, retrying without filter", e);
+            try { searchRes = await (vectorDatabaseSearch as any).execute?.({ query: semanticQuery, topK: searchWindow }); } catch (err) { console.warn("[chat] vector search retry failed", err); }
           }
 
           const vectResults = await normalizeVectorResults(searchRes);
-          const vendorIds = (vectResults || []).map((v: any) => v.vendor_id || v._id || v.id || (v.metadata && (v.metadata.vendor_id || v.metadata.id))).filter(Boolean);
+
+          // dedupe vendor ids preserving order
+          const seen = new Set();
+          const vendorIds = (vectResults || [])
+            .map((v: any) => v.vendor_id || v._id || v.id || (v.metadata && (v.metadata.vendor_id || v.metadata.id)))
+            .filter(Boolean)
+            .filter((id: string) => { if (seen.has(id)) return false; seen.add(id); return true; });
+
+          console.log("[chat] vectResults:", vectResults.length, "vendorIds:", vendorIds.length);
 
           let dbRows: any[] = [];
           if (supabase && vendorIds.length) {
@@ -529,9 +575,9 @@ ${JSON.stringify(reviews)}
             }
           }
 
-          // name-based fallback if needed
+          // name-based fallback if needed (limit to requestedCount candidates)
           if (supabase && dbRows.length === 0 && vectResults.length) {
-            const maybeNames = vectResults.slice(0, 6).map((v) => v.name || v.title || v.vendor_name).filter(Boolean);
+            const maybeNames = vectResults.slice(0, Math.max(6, parseRequestedCount(composedQuery, 3, 12))).map((v) => v.name || v.title || v.vendor_name).filter(Boolean);
             for (const nm of maybeNames) {
               try {
                 const { data } = await supabase.from("vendors").select("*").ilike("name", `%${nm}%`).limit(3);
@@ -541,10 +587,10 @@ ${JSON.stringify(reviews)}
               }
             }
             // dedupe
-            const seen = new Set();
+            const seenRows = new Set();
             dbRows = dbRows.filter((r: any) => {
-              if (seen.has(r.id)) return false;
-              seen.add(r.id);
+              if (seenRows.has(r.id)) return false;
+              seenRows.add(r.id);
               return true;
             });
           }
@@ -559,6 +605,10 @@ ${JSON.stringify(reviews)}
           }
           if (merged.length === 0 && dbRows.length) merged.push(...dbRows);
 
+          // shortlist based on requestedCount (default 3)
+          const finalRequested = parseRequestedCount(composedQuery, 3, 12);
+          const top = (merged.length ? merged : []).slice(0, finalRequested);
+
           if (budgetVal) {
             // filter by price
             const filtered = merged.filter((v: any) => {
@@ -571,9 +621,9 @@ ${JSON.stringify(reviews)}
               return true;
             });
             // shortlist
-            const top = (filtered.length ? filtered : merged).slice(0, 6);
+            const topFiltered = (filtered.length ? filtered : merged).slice(0, finalRequested);
             // conversational + sentinel
-            const paragraphs = top.map((v: any, i: number) => {
+            const paragraphs = topFiltered.map((v: any, i: number) => {
               const name = v.name ?? `Vendor ${i + 1}`;
               const category = v.category ?? "vendor";
               const city = v.city ?? "Mumbai";
@@ -586,7 +636,7 @@ ${JSON.stringify(reviews)}
             const conversational = [`I found these vendors matching "${composedQuery}":`, "", ...paragraphs, "", `Say "More details on <name>" or ask to see reviews.`].join("\n\n");
             writer.write({ type: "text-delta", id: textId, delta: conversational });
 
-            const structured = top.map((v: any) => ({
+            const structured = topFiltered.map((v: any) => ({
               id: v.id ?? v.vendor_id ?? null,
               name: v.name ?? null,
               category: v.category ?? null,
@@ -604,8 +654,7 @@ ${JSON.stringify(reviews)}
             writer.write({ type: "finish" });
             return;
           } else {
-            // no budget filter path (similar, but without price filtering)
-            const top = (merged.length ? merged : []).slice(0, 6);
+            // no budget filter path
             const paragraphs = top.map((v: any, i: number) => {
               const name = v.name ?? `Vendor ${i + 1}`;
               const category = v.category ?? "vendor";
