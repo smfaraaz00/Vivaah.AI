@@ -40,7 +40,9 @@ What I can do for you:
 
 • **Budget planning** — tell me your total budget and I’ll create an ideal breakdown across categories (venue, catering, photography, decor, attire, logistics, contingency, etc.) and suggest allocation amounts per vendor.
 
-• **Vendor discovery** — I can find vendors in Mumbai across categories, aggregate their contact details, sample pricing, reviews and ratings, and present a short-list that matches your budget and style.`
+• **Vendor discovery** — I can find vendors in Mumbai across categories, aggregate their contact details, sample pricing, reviews and ratings, and present a short-list that matches your budget and style.
+
+• **Disclaimer** — This chatbot is a prototype meant for demo purpose, and some dummy data has been used for it. If you want real and accurate data, please search for caterers.`
 
 export const CLEAR_CHAT_TEXT = "New";
 
