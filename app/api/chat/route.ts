@@ -78,6 +78,20 @@ function isVendorQuery(text: string | null) {
   return vendorKeywords.some((k) => t.includes(k)) || cityKeywords.some((c) => t.includes(c));
 }
 
+/* ---------- NEW: detect wedding-topic for system instruction ---------- */
+/**
+ * We already have isVendorQuery above which detects wedding/vendor queries.
+ * For the non-vendor (general LLM) path we will inject a temporary system
+ * instruction so the model deterministically prepends/appends the exact
+ * phrases you requested when the user's question is not about wedding vendors.
+ */
+function isWeddingTopic(text: string | null) {
+  // re-use vendor detection - they align
+  return isVendorQuery(text);
+}
+
+/* ---------- other helpers ---------- */
+
 function parseBudget(text: string | null) {
   try {
     if (!text) return null;
@@ -479,8 +493,21 @@ ${JSON.stringify(factBlock)}
               console.warn("[reviews] vendor lookup failed", e);
             }
 
+            // If vendor not found in DB -> fallback to webSearch for reviews/info
             if (!vendor) {
-              writer.write({ type: "text-delta", id: textId, delta: `Could not find vendor matching "${vendorName}".` });
+              console.log(`[reviews] vendor "${vendorName}" not found in DB, falling back to webSearch`);
+              try {
+                const webRes = await webSearch(vendorName, { limit: 3 }).catch(() => null);
+                if (webRes && webRes.length) {
+                  const s = webRes.slice(0, 3).map((r: any, i: number) => `${i + 1}. ${r.title || r.name}\n${r.snippet || r.summary || ""}\n${r.url || ""}`).join("\n\n");
+                  writer.write({ type: "text-delta", id: textId, delta: `Could not find vendor "${vendorName}" in the internal DB. Web summary (top results):\n\n${s}` });
+                } else {
+                  writer.write({ type: "text-delta", id: textId, delta: `Could not find vendor "${vendorName}" in the internal DB, and web search returned no useful results.` });
+                }
+              } catch (e) {
+                console.warn("[reviews] webSearch fallback failed", e);
+                writer.write({ type: "text-delta", id: textId, delta: `Could not find vendor "${vendorName}" and web search failed.` });
+              }
               writer.write({ type: "text-end", id: textId });
               writer.write({ type: "finish" });
               return;
@@ -749,9 +776,26 @@ ${JSON.stringify(reviews)}
 
   // Normal LLM path (non-vendor)
   try {
+    // If query is not about weddings, we inject a system instruction so the model:
+    // - begins with: "I specialize in wedding vendors"
+    // - then gives the answer
+    // - and ends with: "If you're looking for specialized instructions better to check another LLM"
+    // We do this by appending to SYSTEM_PROMPT for this call only.
+    const extraSystemInstructionForNonWedding = !isWeddingTopic(latestUserText)
+      ? `If the user's question is NOT about wedding vendors, begin your reply with exactly:
+"I specialize in wedding vendors"
+
+Then answer the user's question. At the end of your reply, include exactly:
+"If you're looking for specialized instructions better to check another LLM"
+
+If the user's question IS about wedding vendors, do NOT include the intro or the closing sentence; simply answer normally.`
+      : "";
+
+    const systemToUse = `${SYSTEM_PROMPT}\n\n${extraSystemInstructionForNonWedding}`;
+
     const result = streamText({
       model: MODEL,
-      system: SYSTEM_PROMPT,
+      system: systemToUse,
       messages: convertToModelMessages(messages),
       tools: { webSearch },
       stopWhen: stepCountIs(10),
