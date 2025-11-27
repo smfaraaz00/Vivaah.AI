@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* =========================
-   VIVAAH GLOBALS (REVERTED & FIXED)
+   VIVAAH GLOBALS (GRID HEADER FIX)
    ========================= */
 
 :root {
@@ -16,10 +16,8 @@
   --champagne-gold:#d89f85;
   --bright-gold:  #f0cdbf;
   --warm-gold:    #301934;
-
   --cream-bg: var(--cream-luxury);
   --text-maroon: var(--deep-plum);
-  
   --input-height: 56px;
   --footer-safe: 20px;
   --input-button-gap: 3.8rem;
@@ -37,90 +35,85 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 1. HEADER (FIXED ALIGNMENT) */
+/* 1. HEADER (GRID LAYOUT - THE FIX) */
+/* Using Grid ensures the Title is DEAD CENTER, regardless of button width */
 .chat-header {
   height: 72px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* CRITICAL FIX: Pushes Logo left, Button right */
+  display: grid !important; 
+  grid-template-columns: 1fr auto 1fr !important; /* Left, Center, Right */
+  align-items: center !important;
   background: var(--cream-bg);
   border-bottom: 1px solid rgba(184,110,83,0.12);
   padding: 0 1rem;
   z-index: 100;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
+  top: 0; left: 0; right: 0; width: 100%;
 }
 
-/* FIX: Target the New Chat button specifically to stop wrapping */
+/* Force Logo to the left */
+.chat-header > *:first-child {
+  justify-self: start;
+}
+
+/* Force Title to the center */
+.chat-header > *:nth-child(2) {
+  justify-self: center;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Force Button to the right */
+.chat-header > *:last-child {
+  justify-self: end;
+}
+
+/* FIX: Button Internal Styling (Prevents stacking) */
 .chat-header button, 
-.chat-header a {
-  white-space: nowrap !important; /* CRITICAL FIX: Prevents "+ New" from breaking lines */
-  flex-shrink: 0;
+.chat-header a[role="button"] {
+  display: flex !important;
+  flex-direction: row !important; /* Forces side-by-side */
+  align-items: center !important;
+  gap: 8px !important;
+  white-space: nowrap !important;
 }
 
-.glass-header {
-  backdrop-filter: blur(12px);
-  z-index: 100;
-}
+.glass-header { backdrop-filter: blur(12px); z-index: 100; }
 
-/* 2. WELCOME CARD (Reverted to Gradient, kept spacing) */
+/* 2. WELCOME CARD (Kept Clean) */
 .chat-card {
-  width: 100%;
-  max-width: 56rem;
-  margin: 0 auto;
-  margin-top: 100px !important; /* Kept spacing fix */
-  
-  /* REVERTED: Back to Premium Gradient (No more stark white) */
+  width: 100%; max-width: 56rem; margin: 0 auto;
+  margin-top: 100px !important; /* Space for header */
   background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,252,249,0.98));
-  
-  border-radius: 14px;
-  padding: 1.25rem 1.5rem;
+  border-radius: 14px; padding: 1.25rem 1.5rem;
   border: 1px solid rgba(216,160,130,0.12);
   box-shadow: 0 12px 40px rgba(75,22,51,0.06);
-  position: relative;
-  z-index: 10;
+  position: relative; z-index: 10;
 }
 
-/* 3. CHAT BUBBLES (Reverted to Gradient) */
-/* Assistant - Back to Soft Pearl Gradient */
+/* 3. CHAT BUBBLES */
 .message-assistant-premium {
-  /* REVERTED: Soft gradient instead of garbage white */
   background: linear-gradient(135deg, var(--pearl-white) 0%, var(--soft-blush) 100%) !important;
-  
   border: 1px solid rgba(216, 160, 130, 0.15) !important;
   box-shadow: 0 4px 12px rgba(58, 3, 32, 0.03) !important;
   color: var(--text-maroon);
   border-radius: 22px 22px 22px 6px;
-  padding: 14px 18px;
-  margin: 8px 0;
-  max-width: 86%;
-  align-self: flex-start;
-  font-size: 0.96rem;
-  line-height: 1.6;
+  padding: 14px 18px; margin: 8px 0;
+  max-width: 86%; align-self: flex-start;
+  font-size: 0.96rem; line-height: 1.6;
 }
 
-/* User Bubbles */
 .message-user-premium {
   background: linear-gradient(135deg, var(--deep-plum) 0%, var(--rich-burgundy) 100%);
   color: #fff;
   border-radius: 22px 22px 6px 22px;
-  padding: 12px 16px;
-  margin: 8px 0;
-  max-width: 78%;
-  align-self: flex-end;
-  font-size: 0.96rem;
-  line-height: 1.45;
+  padding: 12px 16px; margin: 8px 0;
+  max-width: 78%; align-self: flex-end;
+  font-size: 0.96rem; line-height: 1.45;
 }
 
 /* 4. SCROLL CONTAINER PADDING */
-.h-screen.overflow-y-auto,
-.h-screen.overflow-auto,
-.main-messages,
-.messages-scroll {
-  padding-top: 100px !important; /* Forces content below header */
+.h-screen.overflow-y-auto, .h-screen.overflow-auto, .main-messages, .messages-scroll {
+  padding-top: 100px !important; 
   padding-bottom: 120px !important;
 }
 
@@ -129,17 +122,14 @@ body {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
   background: rgba(255,252,247,0.98);
   border-top: 1px solid rgba(216,160,130,0.1);
-  padding-top: 12px;
-  padding-bottom: 24px;
+  padding-top: 12px; padding-bottom: 24px;
 }
 
 .input-pill, .input-premium {
-  width: 100%; max-width: 880px; margin: 0 auto; 
-  height: 56px;
-  border-radius: 999px;
-  display: flex; align-items: center; 
+  width: 100%; max-width: 880px; margin: 0 auto; height: 56px;
+  border-radius: 999px; display: flex; align-items: center; 
   padding-left: 1rem; padding-right: 4.5rem;
-  background: var(--pearl-white); /* Soft background */
+  background: var(--pearl-white);
   border: 1px solid rgba(216,160,130,0.2);
   box-shadow: 0 8px 26px rgba(75,22,51,0.04);
 }
@@ -170,7 +160,6 @@ body {
   background: linear-gradient(90deg,var(--bright-gold),var(--champagne-gold));
 }
 
-/* Buttons inside chat */
 .more-details-btn, .btn-premium.purple {
   background: linear-gradient(135deg, var(--deep-plum), var(--rich-burgundy)) !important;
   color: #fff !important; padding: 10px 22px !important; border-radius: 24px !important;
