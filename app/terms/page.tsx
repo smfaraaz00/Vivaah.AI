@@ -17,8 +17,8 @@ export default function Terms() {
                 <h2 className="text-2xl font-semibold">Terms of Use / Disclaimer</h2>
 
                 <p className="text-gray-700">
-                    The following terms of use govern access to and use of the MyAI3
-                    Assistant ("AI Chatbot"), an artificial intelligence tool provided by{" "}
+                    The following terms of use govern access to and use of the Viv 
+                    ("AI Chatbot"), an artificial intelligence tool provided by{" "}
                     {OWNER_NAME} ("I", "me", or "myself"). By engaging with the AI
                     Chatbot, you agree to these terms. If you do not agree, you may not
                     use the AI Chatbot.
@@ -34,8 +34,8 @@ export default function Terms() {
                             designed to assist users by answering questions, helping with
                             planning, retrieving vendor information, and demonstrating the
                             capabilities of an AI-powered conversational assistant.
-                            The AI Chatbot is not affiliated with or endorsed by any course
-                            provider, organization, or institution unless explicitly stated.
+                            The AI Chatbot is not affiliated with or endorsed by any 
+                            organization, or institution unless explicitly stated.
                         </li>
 
                         <li className="text-gray-700">
@@ -101,7 +101,7 @@ export default function Terms() {
 
                         <li className="text-gray-700">
                             <span className="font-semibold">Modification or Discontinuation:</span>{" "}
-                            I may modify, suspend, or discontinue the AI Chatbot at any time
+                            {OWNER_NAME} may modify, suspend, or discontinue the AI Chatbot at any time
                             without notice.
                         </li>
 
@@ -200,8 +200,10 @@ export default function Terms() {
                 <div className="space-y-4">
                     <h3 className="text-xl font-semibold">Governing Law and Jurisdiction</h3>
                     <p className="text-gray-700">
-                        These terms are governed by the laws of the State of North Carolina,
-                        United States. Disputes fall under the jurisdiction of North Carolina courts.
+                        These terms are governed by the laws of India. 
+                        Any disputes arising under or in connection with 
+                        these terms shall fall under the exclusive 
+                        jurisdiction of the courts in Mumbai, Maharashtra.
                     </p>
                 </div>
 
